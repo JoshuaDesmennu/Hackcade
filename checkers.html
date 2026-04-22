@@ -19,6 +19,7 @@
     <script>
         let board = Array(100).fill("", 0, 100);
         let currentPlayer = "b";
+        let lastSelectedIndex = null;
         for (let i = 0; i < 40; i++) {
             if ((i + Math.floor(i / 10)) % 2 == 0) {
                 board[i] = "r";
@@ -70,7 +71,11 @@
                 for (let j = 0; j < 10; j++) {
                     const index = j * 10 + i;
                     context.beginPath();
-                    context.fillStyle = (index + j) % 2 === 0 ? "green" : "white"; 
+                    if (board[index].includes("h")) {
+                        context.fillStyle = "yellow"
+                    } else {
+                        context.fillStyle = (index + j) % 2 === 0 ? "green" : "white"; 
+                    }
                     context.fillRect((canvas.width / 10) * i, (canvas.height / 10) * j, (canvas.width / 10), (canvas.height / 10));
                     context.closePath();
 
@@ -81,11 +86,97 @@
             }
         }
 
-        canvas.addEventListener("click", (e) => {
-            const x = Math.floor(Math.max(0, Math.min(e.offsetX, canvas.width)) / (canvas.width / 3));
-            const y = Math.floor(Math.max(Math.min(e.offsetY, canvas.height), 0) / (canvas.height / 3));
-            const index = y * 10 + x;
+        function getIndex(x, y) {
+            return y * 10 + x;
+        }
 
+        board[getIndex(3, 5)] = "r";
+
+        canvas.addEventListener("click", (e) => {
+            const x = Math.floor(Math.max(0, Math.min(e.offsetX, canvas.width)) / (canvas.width / 10));
+            const y = Math.floor(Math.max(Math.min(e.offsetY, canvas.height), 0) / (canvas.height / 10));
+            const index = getIndex(x, y);
+            let possibleMoves = [];
+            let hasCapture = false;
+
+            if (board[index].startsWith(currentPlayer)) {
+                if (lastSelectedIndex !== null) {
+                    board[lastSelectedIndex] = board[lastSelectedIndex].replace("h", "");
+                    possibleMoves = [];
+                }
+                if (index === lastSelectedIndex) {
+                    board[lastSelectedIndex] = board[lastSelectedIndex].replace("h", "");
+                    lastSelectedIndex = null;
+                    possibleMoves = [];           
+                } else {
+                    board[index] =  board[index].slice(0, 1) + "h" + board[index].slice(1);
+                    lastSelectedIndex = index;
+                    
+                    // any captures
+                    // any free moves
+
+                    if (board[index] == "bh") {
+                        if (x - 2 >= 0 && y - 2 >= 0) {
+                            if (board[getIndex(x-1, y-1)].startsWith("r") && board[getIndex(x-2, y-2)] == "") {
+                                possibleMoves.push({x: x-2, y: y-2});
+                                hasCapture = true;
+                            }
+                        }
+                        if (x + 2 < 10 && y - 2 >= 0) {
+                            if (board[getIndex(x+1, y-1)].startsWith("r") && board[getIndex(x+2, y-2)] == "") {
+                                possibleMoves.push({x: x+2, y:y-2});
+                                hasCapture = true;
+                            }
+                        }
+                        if (hasCapture == false) {
+                            if (x - 1 >= 0 && y - 1 >= 0) {
+                                if (board[getIndex(x-1, y-1)] === "") {
+                                    possibleMoves.push({x: x-1, y: y-1});
+                                }
+                            }
+                            if (x+1 < 10 && y - 1 >= 0) {
+                                if (board[getIndex(x+1, y-1)] === "") {
+                                    possibleMoves.push({x: x+1, y: y-1});
+                                }
+                            }
+                        }
+                    } else if (board[index] === "rh") {
+                        if (x - 2 >= 0 && y + 2 >= 0) {
+                            if (board[getIndex(x-1, y+1)].startsWith("r") && board[getIndex(x-2, y+2)] == "") {
+                                possibleMoves.push({x: x-2, y: y+2});
+                                hasCapture = true;
+                            }
+                        }
+                        if (x + 2 < 10 && y + 2 >= 0) {
+                            if (board[getIndex(x+1, y+1)].startsWith("r") && board[getIndex(x+2, y+2)] == "") {
+                                possibleMoves.push({x: x+2, y:y+2});
+                                hasCapture = true;
+                            }
+                        }
+                        if (hasCapture == false) {
+                            if (x - 1 >= 0 && y + 1 >= 0) {
+                                if (board[getIndex(x-1, y+1)] === "") {
+                                    possibleMoves.push({x: x-1, y: y+1});
+                                }
+                            }
+                            if (x+1 < 10 && y + 1 >= 0) {
+                                if (board[getIndex(x+1, y+1)] === "") {
+                                    possibleMoves.push({x: x+1, y: y+1});
+                                }
+                            }
+                        }
+                    }
+                }
+           } else {
+                board[lastSelectedIndex] = board[lastSelectedIndex].replace("h", "");
+                lastSelectedIndex = null;
+                hasCapture = false;
+                possibleMoves = [];
+            }
+            drawBoard();
+            for (let move of possibleMoves) {
+                drawPossibleMoveCircle(move.x, move.y);
+            }
         })
 
 
