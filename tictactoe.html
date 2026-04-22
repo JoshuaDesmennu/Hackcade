@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TicTacToe</title>
+    <style>
+        #board {
+            border: 1px solid black;
+            width: 720px;
+            height: 720px;
+        }
+    </style>
+</head>
+<body>
+    <h1>TicTacToe</h1> 
+    <hr>
+    <canvas id="board"></canvas>
+    <script>
+
+        const canvas = document.getElementById("board");
+        const context = canvas.getContext("2d");
+        canvas.width = 720;
+        canvas.height = 720;
+        context.lineWidth = 5;
+
+        let board = [
+            "", "", "", "", "", "", "", "", ""
+        ];
+        
+        function drawBoard() {
+            context.clearRect(0, 0, canvas.width, canvas.height);
+            for (let i = 1; i < 3; i++) {
+                context.moveTo(0, (canvas.height / 3) * i);
+                context.lineTo(canvas.width, (canvas.height / 3) * i);
+                context.stroke();
+
+                context.moveTo((anvas.width / 3) * i, 0);
+                context.lineTo((canvas.width / 3) * i, canvas.height);
+                context.stroke();
+            }
+
+            for (let i = 0; i < 9; i++) {
+                const x = i % 3;
+                const y = i // 3;
+            }
+
+        }
+
+        drawBoard();
+
+        
+   </script>
+</body>
+</html>
