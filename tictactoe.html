@@ -20,35 +20,162 @@
 
         const canvas = document.getElementById("board");
         const context = canvas.getContext("2d");
+        const shapeRadius = 70;
+        const boardPadding = 20;
         canvas.width = 720;
         canvas.height = 720;
         context.lineWidth = 5;
-
+        context.lineCap = "round";
         let board = [
             "", "", "", "", "", "", "", "", ""
         ];
+
+        let currentPlayer = "x";
+        let isWon = false;
+
+
+        canvas.addEventListener("click", (e) => {
+            if (isWon) return;
+            const x = Math.floor(Math.max(0, Math.min(e.offsetX, canvas.width)) / (canvas.width / 3));
+            const y = Math.floor(Math.max(Math.min(e.offsetY, canvas.height), 0) / (canvas.height / 3));
+            const index = y * 3 + x;
+
+            if (board[index] === "") {
+                board[index] = currentPlayer;
+                drawBoard();
+                const result = checkGameWon(currentPlayer);
+
+                if (result.isWon === true) {
+                    drawWinningLine(result.type);
+                    isWon = true;
+                    return;
+                }
+                currentPlayer = currentPlayer === "x" ? "o" : "x";
+            }
+
+        })
+
+        function checkGameWon(playerSign) {
+            if (board[0] === board[1] && board[1] === board[2] && board[0] === playerSign) return {isWon: true, type: 1};
+            if (board[0] === board[3] && board[3] === board[6] && board[0] === playerSign) return {isWon: true, type: 4};
+            if (board[0] === board[4] && board[4] === board[8] && board[0] === playerSign) return {isWon: true, type: 7};
+            if (board[1] === board[4] && board[4] === board[7] && board[1] === playerSign) return {isWon: true, type: 5};
+            if (board[2] === board[5] && board[5] === board[8] && board[2] === playerSign) return {isWon: true, type: 6};
+            if (board[2] === board[4] && board[4] === board[6] && board[2] === playerSign) return {isWon: true, type: 8};
+            if (board[3] === board[4] && board[4] === board[5] && board[3] === playerSign) return {isWon: true, type: 2};
+            if (board[6] === board[7] && board[7] === board[8] && board[6] === playerSign) return {isWon: true, type: 3};
+            return {isWon: false, type: null};
+        }
+
+        function drawWinningLine(type) {
+            let x1, y1, x2, y2 = 0;
+            switch (type) {
+                case 1:
+                    x1 = (boardPadding * 3);
+                    x2 = canvas.width - (boardPadding * 3);
+                    y1 = (canvas.height / 6);
+                    y2 = y1;
+                    break;
+                case 2:
+                    x1 = (boardPadding * 3);
+                    x2 = canvas.width - (boardPadding * 3);
+                    y1 = (canvas.height / 3) * 1 + (canvas.height / 6);
+                    y2 = y1;
+                    break;
+                case 3:
+                    x1 = (boardPadding * 3);
+                    x2 = canvas.width - (boardPadding * 3);
+                    y1 = (canvas.height / 3) * 2 + (canvas.height / 6);
+                    y2 = y1;
+                    break;
+                case 4:
+                    y1 = (boardPadding * 3);
+                    y2 = canvas.height - (boardPadding * 3);
+                    x1 = (canvas.width / 6);
+                    x2 = x1;
+                    break;
+                case 5:
+                    y1 = (boardPadding * 3);
+                    y2 = canvas.height - (boardPadding * 3);
+                    x1 = (canvas.width / 3) * 1 + (canvas.width / 6);
+                    x2 = x1;
+                    break;
+                case 6:
+                    y1 = (boardPadding * 3);
+                    y2 = canvas.height - (boardPadding * 3);
+                    x1 = (canvas.width / 3) * 2 + (canvas.width / 6);
+                    x2 = x1;
+                    break;
+                case 7:
+                    y1 = (boardPadding * 3);
+                    x1 = (boardPadding * 3);
+                    y2 = canvas.height - (boardPadding * 3);
+                    x2 = canvas.width - (boardPadding * 3);
+                    break;
+                case 8:
+                    y1 = (boardPadding * 3);
+                    x1 = canvas.width - (boardPadding * 3);
+                    y2 = canvas.height - (boardPadding * 3);
+                    x2 = (boardPadding * 3);
+                    break;
+            }
+            context.lineWidth = 2;
+            context.strokeStyle = "red";
+            context.beginPath();
+            context.moveTo(x1, y1);
+            context.lineTo(x2, y2);
+            context.stroke();
+            context.closePath();
+        }
+
         
         function drawBoard() {
             context.clearRect(0, 0, canvas.width, canvas.height);
             for (let i = 1; i < 3; i++) {
-                context.moveTo(0, (canvas.height / 3) * i);
-                context.lineTo(canvas.width, (canvas.height / 3) * i);
+                context.beginPath();
+                context.moveTo(boardPadding, (canvas.height / 3) * i);
+                context.lineTo(canvas.width - boardPadding, (canvas.height / 3) * i);
                 context.stroke();
+                context.closePath();
 
-                context.moveTo((anvas.width / 3) * i, 0);
-                context.lineTo((canvas.width / 3) * i, canvas.height);
+                context.beginPath();
+                context.moveTo((canvas.width / 3) * i, boardPadding);
+                context.lineTo((canvas.width / 3) * i, canvas.height - boardPadding);
                 context.stroke();
+                context.closePath();
             }
 
             for (let i = 0; i < 9; i++) {
                 const x = i % 3;
-                const y = i // 3;
+                const y = Math.floor(i / 3);
+                const tileCenterX = (canvas.width / 3) * x + (canvas.width / 6);
+                const tileCenterY = (canvas.height / 3) * y + (canvas.height / 6);
+
+                if (board[i] === "o") {
+                    context.beginPath();
+                    context.arc(tileCenterX, tileCenterY, shapeRadius, 0, 2 * Math.PI);
+                    context.closePath();
+                    context.stroke();
+                } else if (board[i] === "x") {
+                    context.beginPath();
+                    context.moveTo(tileCenterX - shapeRadius, tileCenterY - shapeRadius);
+                    context.lineTo(tileCenterX + shapeRadius, tileCenterY + shapeRadius);
+                    context.stroke();
+                    context.closePath();
+
+                    context.beginPath();
+                    context.moveTo(tileCenterX - shapeRadius, tileCenterY + shapeRadius);
+                    context.lineTo(tileCenterX + shapeRadius, tileCenterY - shapeRadius);
+                    context.stroke();
+                    context.closePath();
+                }
+
             }
 
         }
 
-        drawBoard();
 
+        drawBoard();
         
    </script>
 </body>
