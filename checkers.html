@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checkers</title>
+    <style>
+        #board {
+            border: 1px solid black;
+            width: 720px;
+            height: 720px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Checkers</h1> 
+    <hr>
+    <canvas id="board"></canvas>
+    <script>
+        let board = Array(100).fill("", 0, 100);
+        let currentPlayer = "b";
+        for (let i = 0; i < 40; i++) {
+            if ((i + Math.floor(i / 10)) % 2 == 0) {
+                board[i] = "r";
+                board[99 - i] = "b";
+            }
+        }
+
+        const canvas = document.getElementById("board");
+        const context = canvas.getContext("2d");
+        const checkerRadius = 25;
+        canvas.width = 720;
+        canvas.height = 720;
+
+        function drawPossibleMoveCircle(x, y) {
+            context.beginPath();
+            context.arc(x * (canvas.width / 10) + (canvas.width / 20), (canvas.height / 10) * y + (canvas.height / 20), checkerRadius * 0.5, 0, 2 * Math.PI);
+            context.fillStyle = "#cccccc55"
+            context.fill();
+            context.closePath();
+        }
+
+        function drawChecker(x, y, type) {
+            context.beginPath();
+            context.arc(x * (canvas.width / 10) + (canvas.width / 20), (canvas.height / 10) * y + (canvas.height / 20), checkerRadius, 0, 2 * Math.PI);
+            context.fillStyle = type.startsWith("r") ? "red" : "black";
+            context.fill();
+            context.strokeStyle = type.startsWith("b") ? "#aaa" : "black";
+            context.stroke();
+            context.closePath();
+
+            if (type.endsWith("k")) {
+            } else {
+                context.beginPath();
+                context.arc(x * (canvas.width / 10) + (canvas.width / 20), (canvas.height / 10) * y + (canvas.height / 20), checkerRadius * 0.8, 0, 2 * Math.PI);
+                context.strokeStyle = type.startsWith("b") ? "#aaa" : "black";
+                context.stroke();
+                context.closePath();
+
+                context.beginPath();
+                context.arc(x * (canvas.width / 10) + (canvas.width / 20), (canvas.height / 10) * y + (canvas.height / 20), checkerRadius * 0.4, 0, 2 * Math.PI);
+                context.strokeStyle = type.startsWith("b") ? "#aaa" : "black";
+                context.stroke();
+                context.closePath();
+            }
+        }
+
+        function drawBoard() {
+            for (let i = 0; i < 10; i++) {
+                for (let j = 0; j < 10; j++) {
+                    const index = j * 10 + i;
+                    context.beginPath();
+                    context.fillStyle = (index + j) % 2 === 0 ? "green" : "white"; 
+                    context.fillRect((canvas.width / 10) * i, (canvas.height / 10) * j, (canvas.width / 10), (canvas.height / 10));
+                    context.closePath();
+
+                    if (board[index] !== "") {
+                        drawChecker(i, j, board[index]);
+                    }
+                }
+            }
+        }
+
+        canvas.addEventListener("click", (e) => {
+            const x = Math.floor(Math.max(0, Math.min(e.offsetX, canvas.width)) / (canvas.width / 3));
+            const y = Math.floor(Math.max(Math.min(e.offsetY, canvas.height), 0) / (canvas.height / 3));
+            const index = y * 10 + x;
+
+        })
+
+
+        drawBoard();
+   </script>
+</body>
+</html>
