@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<%- include("./partials/head.ejs") %>
+<body>
+    <header>
+        <%- include("./partials/navbar.ejs") %>
+    </header>
+    <main>
+        <%- include("./partials/form.ejs") %>
+        <canvas id="board"></canvas>
+    </main>
+    <script>
+        let board = Array(100).fill("", 0, 100);
+        let currentPlayer = "b";
+        let lastSelectedIndex = null;
+        for (let i = 0; i < 40; i++) {
+            if ((i + Math.floor(i / 10)) % 2 == 0) {
+                board[i] = "r";
+                board[99 - i] = "b";
+            }
+        }
+        const states = {
+            PIECE_PICK: 0,
+            MOVE_PICK: 1,
+        };
+        let currentState = states.PIECE_PICK;
+
+        const canvas = document.getElementById("board");
+        const context = canvas.getContext("2d");
+        const checkerRadius = 25;
+        canvas.width = 720;
+        canvas.height = 720;
+
+        function drawPossibleMoveCircle(x, y) {
+            context.beginPath();
+            context.arc(x * (canvas.width / 10) + (canvas.width / 20), (canvas.height / 10) * y + (canvas.height / 20), checkerRadius * 0.5, 0, 2 * Math.PI);
+            context.fillStyle = "#cccccc55"
+            context.fill();
+            context.closePath();
+        }
+
+        function drawChecker(x, y, type) {
+            context.beginPath();
+            context.arc(x * (canvas.width / 10) + (canvas.width / 20), (canvas.height / 10) * y + (canvas.height / 20), checkerRadius, 0, 2 * Math.PI);
+            context.fillStyle = type.startsWith("r") ? "red" : "black";
+            context.fill();
+            context.strokeStyle = type.startsWith("b") ? "#aaa" : "black";
+            context.stroke();
+            context.closePath();
+
+            context.beginPath();
+            context.arc(x * (canvas.width / 10) + (canvas.width / 20), (canvas.height / 10) * y + (canvas.height / 20), checkerRadius * 0.8, 0, 2 * Math.PI);
+            context.strokeStyle = type.startsWith("b") ? "#aaa" : "black";
+            context.stroke();
+            context.closePath();
+
+            context.beginPath();
+            context.arc(x * (canvas.width / 10) + (canvas.width / 20), (canvas.height / 10) * y + (canvas.height / 20), checkerRadius * 0.4, 0, 2 * Math.PI);
+            context.strokeStyle = type.startsWith("b") ? "#aaa" : "black";
+            if (type.endsWith("k")) {
+                context.fillStyle = "purple";
+                context.fill();
+            } 
+            context.stroke();
+            context.closePath();
+        }
+
+        function drawBoard() {
+            for (let i = 0; i < 10; i++) {
+                for (let j = 0; j < 10; j++) {
+                    const index = j * 10 + i;
+                    context.beginPath();
+                    if (board[index].includes("h")) {
+                        context.fillStyle = "yellow"
+                    } else {
+                        context.fillStyle = (index + j) % 2 === 0 ? "green" : "white"; 
+                    }
+                    context.fillRect((canvas.width / 10) * i, (canvas.height / 10) * j, (canvas.width / 10), (canvas.height / 10));
+                    context.closePath();
+
+                    if (board[index] !== "") {
+                        drawChecker(i, j, board[index]);
+                    }
+                }
+            }
+        }
+
+        function getIndex(x, y) {
+            return y * 10 + x;
+        }
+
+        function hasChopAvailable(playerSign, position, direction) {
+            for (let x = 0; x < 10; x++) {
+                for (let y = 0; y < 10; y++) {
+                    if (position !== null && position !== undefined) {
+                        x = position.x;
+                        y = position.y;
+                    }
+                    if (!board[getIndex(x, y)].startsWith(playerSign)) {
+                        if (position !== null && position !== undefined) return false;
+                        continue;
+                    }
+                    if (!board[getIndex(x, y)].endsWith("k")) {
+                        if (playerSign.startsWith("b")) {
+                            if (x-2 >= 0 && y-2 >= 0) {
+                                if (board[getIndex(x-1, y-1)].startsWith("r") && board[getIndex(x-2, y-2)] === "") {
+                                    return true;
+                                }
+                            }
+
+                            if (x+2 < 10 && y-2 >= 0) {
+                                if (board[getIndex(x+1, y-1)].startsWith("r") && board[getIndex(x+2, y-2)] === "") {
+                                    return true;
+                                }
+                            }
+
+                            if (x-2 >= 0 && y+2 < 10) {
+                                if (board[getIndex(x-1, y+1)].startsWith("r") && board[getIndex(x-2, y+2)] === "") {
+                                    return true;
+                                }
+                            }
+
+                            if (x+2 < 10 && y+2 < 10) {
+                                if (board[getIndex(x+1, y+1)].startsWith("r") && board[getIndex(x+2, y+2)] === "") {
+                                    return true;
+                                }
+                            }
+                        }
+
+                        if (playerSign.startsWith("r")) {
+                            if (x-2 >= 0 && y+2 < 10) {
+                                if (board[getIndex(x-1, y+1)].startsWith("b") && board[getIndex(x-2, y+2)] === "") {
+                                    return true;
+                                }
+                            }
+
+                            if (x+2 < 10 && y+2 < 10) {
+                                if (board[getIndex(x+1, y+1)].startsWith("b") && board[getIndex(x+2, y+2)] === "") {
+                                    return true;
+                                }
+                            }
+
+                            if (x-2 >= 0 && y-2 >= 0) {
+                                if (board[getIndex(x-1, y-1)].startsWith("b") && board[getIndex(x-2, y-2)] === "") {
+                                    return true;
+                                }
+                            }
+
+                            if (x+2 < 10 && y-2 >= 0) {
+                                if (board[getIndex(x+1, y-1)].startsWith("b") && board[getIndex(x+2, y-2)] === "") {
+                                    return true;
+                                }
+                            }
+                        }
+                    } else {
+                        for (let i = 1; i < 10; i++) {
+                            if (x-i-1 >= 0) {
+                                if (y-i-1 >= 0) {
+                                    if (board[getIndex(x-i, y-i)].startsWith(playerSign === "b" ? "r" : "b") && board[getIndex(x-i-1, y-i-1)] == "") {
+                                        if (direction !== null && direction !== undefined) {
+                                            if (direction.x === -1 && direction.y === -1) return false;
+                                        }
+                                        return true;
+                                    }
+                                }
+                                if (y+i+1 < 10) {
+                                    if (board[getIndex(x-i, y+i)].startsWith(playerSign === "b" ? "r" : "b") && board[getIndex(x-i-1, y+i+1)] == "") {
+                                         if (direction !== null && direction !== undefined) {
+                                            if (direction.x === -1 && direction.y === 1) return false;
+                                        }
+                                        return true;
+                                    }
+                                }
+                            }
+                            if (x+i+1 < 10) {
+                                if (y-i-1 >= 0) {
+                                    if (board[getIndex(x+i, y-i)].startsWith(playerSign === "b" ? "r" : "b") && board[getIndex(x+i+1, y-i-1)] == "") {
+                                         if (direction !== null && direction !== undefined) {
+                                            if (direction.x === 1 && direction.y === -1) return false;
+                                        }
+                                        return true;
+                                    }
+                                }
+                                if (y+i+1 < 10) {
+                                    if (board[getIndex(x+i, y+i)].startsWith(playerSign === "b" ? "r" : "b") && board[getIndex(x+i+1, y+i+1)] == "") {
+                                         if (direction !== null && direction !== undefined) {
+                                            if (direction.x === 1 && direction.y === 1) return false;
+                                        }
+                                        return true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (position !== null && position !== undefined) return false;
+                }
+            }
+            return false;
+        } 
+
+        let possibleMoves = [];
+
+        canvas.addEventListener("click", (e) => {
+            const x = Math.floor(Math.max(0, Math.min(e.offsetX, canvas.width)) / (canvas.width / 10));
+            const y = Math.floor(Math.max(Math.min(e.offsetY, canvas.height), 0) / (canvas.height / 10));
+            const index = getIndex(x, y);
+
+            switch (currentState) {
+                case states.MOVE_PICK: {
+                    const chosenMove = possibleMoves.find((move, index) => move.x === x && move.y === y);
+                    if (chosenMove === undefined) {
+                    } else {
+                        // move player
+                        // perform capture
+                        // if reached end king player
+
+                        board[getIndex(x, y)] = board[lastSelectedIndex].replace("h", "");
+                        board[lastSelectedIndex] = "";
+                        possibleMoves = [];
+
+                        // capture
+                        if (chosenMove.opponentPieceLocation !== null) {
+                            board[getIndex(chosenMove.opponentPieceLocation.x, chosenMove.opponentPieceLocation.y)] = "";
+                        }
+
+                        const prevX = lastSelectedIndex % 10;
+                        const prevY = Math.floor(lastSelectedIndex / 10);
+
+                        if (!hasChopAvailable(currentPlayer, {x: x, y: y}, {x: x - prevX > 0 ? -1 : 1, y: y - prevY > 0 ? -1 : 1}) || chosenMove.opponentPieceLocation === null) {
+                            if ((currentPlayer == "b" && y == 0) || (currentPlayer == "r" && y == 9)) {
+                                board[getIndex(x, y)] = board[getIndex(x, y)] + "k";
+                            }
+                            currentPlayer = currentPlayer === "b" ? "r" : "b";
+                        } 
+                        lastSelectedIndex = null;
+                    }
+                    currentState = states.PIECE_PICK;
+
+                }
+                case states.PIECE_PICK: {
+                    let hasCapture = hasChopAvailable(currentPlayer.charAt(0));
+
+                    if (board[index].startsWith(currentPlayer)) {
+                        if (lastSelectedIndex !== null) {
+                            board[lastSelectedIndex] = board[lastSelectedIndex].replace("h", "");
+                            possibleMoves = [];
+                        }
+                        if (index === lastSelectedIndex) {
+                            board[lastSelectedIndex] = board[lastSelectedIndex].replace("h", "");
+                            lastSelectedIndex = null;
+                            possibleMoves = [];           
+                        } else {
+                            board[index] =  board[index].slice(0, 1) + "h" + board[index].slice(1);
+                            lastSelectedIndex = index;
+                            
+                            // any captures
+                            // any free moves
+
+                            if (board[index] == "bh") {
+                                if (x - 2 >= 0 && y - 2 >= 0) {
+                                    if (board[getIndex(x-1, y-1)].startsWith("r") && board[getIndex(x-2, y-2)] == "") {
+                                        possibleMoves.push({x: x-2, y: y-2, opponentPieceLocation: {x: x-1, y:y-1}});
+                                        hasCapture = true;
+                                    }
+                                }
+                                if (x + 2 < 10 && y - 2 >= 0) {
+                                    if (board[getIndex(x+1, y-1)].startsWith("r") && board[getIndex(x+2, y-2)] == "") {
+                                        possibleMoves.push({x: x+2, y:y-2, opponentPieceLocation: {x: x+1, y:y-1}});
+                                        hasCapture = true;
+                                    }
+                                }
+                                if (x - 2 >= 0 && y + 2 < 10) {
+                                    if (board[getIndex(x-1, y+1)].startsWith("r") && board[getIndex(x-2, y+2)] == "") {
+                                        possibleMoves.push({x: x-2, y: y+2, opponentPieceLocation: {x: x-1, y: y+1}});
+                                    }
+                                }
+                                if (x + 2 < 10 && y + 2 < 10) {
+                                    if (board[getIndex(x+1, y+1)].startsWith("r") && board[getIndex(x+2, y+2)] == "") {
+                                        possibleMoves.push({x: x+2, y:y+2, opponentPieceLocation: {x: x+1, y: y+1}});
+                                    }
+                                }
+                                if (hasCapture == false) {
+                                    if (x - 1 >= 0 && y - 1 >= 0) {
+                                        if (board[getIndex(x-1, y-1)] === "") {
+                                            possibleMoves.push({x: x-1, y: y-1, opponentPieceLocation: null});
+                                        }
+                                    }
+                                    if (x+1 < 10 && y - 1 >= 0) {
+                                        if (board[getIndex(x+1, y-1)] === "") {
+                                            possibleMoves.push({x: x+1, y: y-1, opponentPieceLocation: null});
+                                        }
+                                    }
+                                }
+                            } else if (board[index] === "rh") {
+                                if (x - 2 >= 0 && y + 2 < 10) {
+                                    if (board[getIndex(x-1, y+1)].startsWith("b") && board[getIndex(x-2, y+2)] == "") {
+                                        possibleMoves.push({x: x-2, y: y+2, opponentPieceLocation: {x: x-1, y: y+1}});
+                                    }
+                                }
+                                if (x + 2 < 10 && y + 2 < 10) {
+                                    if (board[getIndex(x+1, y+1)].startsWith("b") && board[getIndex(x+2, y+2)] == "") {
+                                        possibleMoves.push({x: x+2, y:y+2, opponentPieceLocation: {x: x+1, y: y+1}});
+                                    }
+                                }
+                                if (x - 2 >= 0 && y - 2 >= 0) {
+                                    if (board[getIndex(x-1, y-1)].startsWith("b") && board[getIndex(x-2, y-2)] == "") {
+                                        possibleMoves.push({x: x-2, y: y-2, opponentPieceLocation: {x: x-1, y:y-1}});
+                                        hasCapture = true;
+                                    }
+                                }
+                                if (x + 2 < 10 && y - 2 >= 0) {
+                                    if (board[getIndex(x+1, y-1)].startsWith("b") && board[getIndex(x+2, y-2)] == "") {
+                                        possibleMoves.push({x: x+2, y:y-2, opponentPieceLocation: {x: x+1, y:y-1}});
+                                        hasCapture = true;
+                                    }
+                                }
+                                if (hasCapture == false) {
+                                    if (x - 1 >= 0 && y + 1 >= 0) {
+                                        if (board[getIndex(x-1, y+1)] === "") {
+                                            possibleMoves.push({x: x-1, y: y+1, opponentPieceLocation: null});
+                                        }
+                                    }
+                                    if (x+1 < 10 && y + 1 >= 0) {
+                                        if (board[getIndex(x+1, y+1)] === "") {
+                                            possibleMoves.push({x: x+1, y: y+1, opponentPieceLocation: null});
+                                        }
+                                    }
+                                }
+                            } else if (board[index].endsWith("k")) {
+                                const playerSign = board[index].charAt(0);
+                                let directionalStop = {
+                                    ul: false,
+                                    ur: false,
+                                    dl: false,
+                                    dr: false,
+                                };
+                                if (hasCapture === true) {
+                                    for (let i = 1; i < 10; i++) {
+                                        if (x-i-1 >= 0) {
+                                            if (y-i-1 >= 0) {
+                                                if (board[getIndex(x-i, y-i)].startsWith(playerSign === "b" ? "r" : "b") && board[getIndex(x-i-1, y-i-1)] == "" && !directionalStop.ul) {
+                                                    let originalI = i;
+                                                    while (i < 10 && x - i - 1 >= 0 && y - i - 1 >= 0) {
+                                                        if (board[getIndex(x-i-1, y-i-1)] !== "") {
+                                                            directionalStop.ul = true;
+                                                            break;
+                                                        };
+                                                        possibleMoves.push({x: x - i - 1, y: y - i - 1, opponentPieceLocation: {x: x - originalI, y: y - originalI}});
+                                                        i++;
+                                                    }
+                                                    i = originalI;
+                                                    
+                                                }
+                                            }
+                                            if (y+i+1 < 10) {
+                                                if (board[getIndex(x-i, y+i)].startsWith(playerSign === "b" ? "r" : "b") && board[getIndex(x-i-1, y+i+1)] == "" && !directionalStop.ur) {
+                                                    let originalI = i;
+                                                    while (i < 10 && x - i - 1 >= 0 && y + i + 1 < 10) {
+                                                        if (board[getIndex(x-i-1, y+i+1)] !== "") {
+                                                            directionalStop.ur = true;
+                                                            break;
+                                                        }
+                                                        possibleMoves.push({x: x - i - 1, y: y + i + 1, opponentPieceLocation: {x: x - originalI, y: y + originalI}});
+                                                        i++;
+                                                    }
+                                                    i = originalI;
+                                                }
+                                            }
+                                        }
+                                        if (x+i+1 < 10) {
+                                            if (y-i-1 >= 0) {
+                                                if (board[getIndex(x+i, y-i)].startsWith(playerSign === "b" ? "r" : "b") && board[getIndex(x+i+1, y-i-1)] == "" && !directionalStop.dl) {
+                                                    let originalI = i;
+                                                    while (i < 10 && x + i + 1 < 10 && y - i - 1 >= 0) {
+                                                        if (board[getIndex(x+i+1, y-i-1)] !== "") {
+                                                            directionalStop.dl = true;
+                                                            break;
+                                                        }
+                                                        possibleMoves.push({x: x + i + 1, y: y - i - 1, opponentPieceLocation: {x: x + originalI, y: y - originalI}});
+                                                        i++;
+                                                    }
+                                                    i = originalI;
+                                                }
+                                            }
+                                            if (y+i+1 < 10) {
+                                                if (board[getIndex(x+i, y+i)].startsWith(playerSign === "b" ? "r" : "b") && board[getIndex(x+i+1, y+i+1)] == "" && !directionalStop.dr) {
+                                                    let originalI = i;
+                                                    while (i < 10 && x + i + 1 < 10 && y + i + 1 < 10) {
+                                                        if (board[getIndex(x+i+1, y+i+1)] !== "") {
+                                                            directionalStop.dr = true;
+                                                            break;
+                                                        }
+                                                        possibleMoves.push({x: x + i + 1, y: y + i + 1, opponentPieceLocation: {x: x + originalI, y: y + originalI}});
+                                                        i++;
+                                                    }
+                                                    i = originalI;
+                                                }
+                                            }
+                                        }
+                                    }
+    
+                                } else {
+                                    let i = 0;
+                                    while (i < 10 && x - i - 1 >= 0 && y - i - 1 >= 0) {
+                                        if (board[getIndex(x-i-1, y-i-1)] !== "") break;
+                                        possibleMoves.push({x: x - i - 1, y: y - i - 1, opponentPieceLocation: null});
+                                        i++;
+                                    }
+                                    i = 0;
+                                    while (i < 10 && x - i - 1 >= 0 && y + i + 1 < 10) {
+                                        if (board[getIndex(x-i-1, y+i+1)] !== "") break;
+                                        possibleMoves.push({x: x - i - 1, y: y + i + 1, opponentPieceLocation: null});
+                                        i++;
+                                    }
+                                    i = 0;
+                                    while (i < 10 && x + i + 1 < 10 && y - i - 1 >= 0) {
+                                        if (board[getIndex(x+i+1, y-i-1)] !== "") break;
+                                        possibleMoves.push({x: x + i + 1, y: y - i - 1, opponentPieceLocation: null});
+                                        i++;
+                                    }
+                                    i = 0;
+                                    while (i < 10 && x + i + 1 < 10 && y + i + 1 < 10) {
+                                        if (board[getIndex(x+i+1, y+i+1)] !== "") break;
+                                        possibleMoves.push({x: x + i + 1, y: y + i + 1, opponentPieceLocation: null});
+                                        i++;
+                                    }
+                                            
+                                }
+       
+                            }
+                            currentState = states.MOVE_PICK;
+                        }
+                    } else {
+                        if (lastSelectedIndex !== null) {
+                            board[lastSelectedIndex] = board[lastSelectedIndex].replace("h", "");
+                        }
+                        lastSelectedIndex = null;
+                        hasCapture = false;
+                        possibleMoves = [];
+                    }
+                    drawBoard();
+                    for (let move of possibleMoves) {
+                        drawPossibleMoveCircle(move.x, move.y);
+                    }
+                    break;
+                }
+            }
+       })
+
+
+        drawBoard();
+   </script>
+</body>
+
+</html>
+
+<!-- 
+    Checkers.start_playing()
+    if player.isHungry():
+        checkers.alert("Go and eat")
+    else:
+        checkers.alert("Go and prepare food so you will eat when you are hungry")
+
+    checkers.turnOfThePC()
+-->

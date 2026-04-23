@@ -1,16 +1,14 @@
 const express = require("express");
 const app = express();
 
+app.use(express.static("static"));
 app.set("view engine", "ejs");
 
 app.get("/", (req, res) => {
-    res.render("index", {
-        text: "World"
-    });
-})
+    res.render("home");
+}); 
 
-const userRouter = require("./routes/users");
-
-app.use("/users", userRouter);
+const gamesRouter = require("./routes/games");
+app.use("/games", gamesRouter);
 
 app.listen(3000);

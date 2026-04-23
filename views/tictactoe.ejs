@@ -1,21 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TicTacToe</title>
-    <style>
-        #board {
-            border: 1px solid black;
-            width: 720px;
-            height: 720px;
-        }
-    </style>
-</head>
+    <%- include("./partials/head.ejs") %>
 <body>
-    <h1>TicTacToe</h1> 
-    <hr>
-    <canvas id="board"></canvas>
+    <header>
+        <%- include("./partials/navbar.ejs") %>
+    </header>
+    <main>
+        <%- include("./partials/form.ejs") %>
+        <canvas id="board"></canvas>
+    </main>
     <script>
 
         const canvas = document.getElementById("board");
@@ -25,6 +18,7 @@
         canvas.width = 720;
         canvas.height = 720;
         context.lineWidth = 5;
+        context.strokeStyle = "white";
         context.lineCap = "round";
         let board = [
             "", "", "", "", "", "", "", "", ""

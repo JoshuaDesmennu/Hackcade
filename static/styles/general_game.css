@@ -1,0 +1,81 @@
+@font-face {
+    font-family: 'IntelOneMono';
+    src: url('./../fonts/Intel_One_Mono/IntelOneMono.woff2') format('woff2');
+    font-weight: normal;
+    font-style: normal;
+}
+
+html {
+    background-color: #111;
+    color: white;
+    font-family: IntelOneMono;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    width: 100vw;
+    height: 100vh;
+}
+
+
+#board {
+    border: 1px solid black;
+    width: 720px;
+    height: 720px;
+}
+
+main {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    flex: 1;
+}
+
+input {
+    padding: 12px;
+    font-family: IntelOneMono;
+    background-color: transparent;
+    color: white;
+    font-size: 15px;
+    border: 1px solid #ccc;
+    outline: none;
+}
+
+input:focus {
+    border: 1px solid #a000c0;
+}
+button {
+    padding: 12px;
+    font-family: IntelOneMono;
+    background-color: transparent;
+    color: white;
+    font-size: 15px;
+    border: 1px solid #ccc;
+    font-weight: bold;
+    transition-property: background-color;
+    transition-duration: 150ms;
+}
+button:hover {
+    background-color: white;
+    color: #a000c0;
+}
+form {
+    display: flex;
+    padding-bottom: 15px;
+}
+
+form > div {
+    display: flex;
+    padding-right: 10px;
+}
+form > div > * {
+    display: block;
+    padding-right: 10px;
+}
+
+label {
+    font-size: 18px;
+}
