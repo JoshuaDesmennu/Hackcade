@@ -2,16 +2,49 @@
 <html lang="en">
 <%- include("./partials/head.ejs") %>
 <body>
-    <header>
-        <%- include("./partials/navbar.ejs") %>
-    </header>
-    <main>
-        <%- include("./partials/form.ejs") %>
-        <canvas id="board"></canvas>
-    </main>
-    <script>
-        let board = Array(100).fill("", 0, 100);
+        <header><%- include("./partials/navbar.ejs") %></header>
+        <main>
+            <aside class="left pane">
+
+            </aside>
+            <div class="gameArea">
+                <%- include("./partials/form.ejs") %>
+                <canvas id="board"></canvas>
+            </div>
+            <aside class="right pane"></aside>
+       </main>
+       <script>
+        const ws = new WebSocket(`ws://${window.location.host}`);
+
+        const form = document.querySelector(".room-form");
+        const roomCodeInput = document.getElementById("roomCode");
+        const displayNameInput = document.getElementById("displayName");
+        const submitButton = document.querySelector(".room-form button")
+        
+        const lastCode = localStorage.getItem("recentRoomCode");
+        const lastName = localStorage.getItem("displayName");
+
+        if (lastCode !== null) roomCodeInput.value = lastCode;
+        if (lastName !== null) displayNameInput.value = lastName;
+
+        let room = null;
+        let isMyTurn = false;
+        let onlineID = null;
+        
+        form.addEventListener("submit", (e) => {
+            e.preventDefault();
+            localStorage.setItem("recentRoomCode", form["roomCode"].value);
+            localStorage.setItem("displayName", form["displayName"].value);
+            
+            connectToRoom(
+                form["roomCode"].value,
+                form["displayName"].value,
+            );
+        });
+        
+        let board = Array(100).fill("");
         let currentPlayer = "b";
+        let isWon = false;
         let lastSelectedIndex = null;
         for (let i = 0; i < 40; i++) {
             if ((i + Math.floor(i / 10)) % 2 == 0) {
@@ -30,6 +63,7 @@
         const checkerRadius = 25;
         canvas.width = 720;
         canvas.height = 720;
+
 
         function drawPossibleMoveCircle(x, y) {
             context.beginPath();
@@ -201,6 +235,8 @@
         let possibleMoves = [];
 
         canvas.addEventListener("click", (e) => {
+            if (!isMyTurn && room != null) return;
+            if (isWon) return;
             const x = Math.floor(Math.max(0, Math.min(e.offsetX, canvas.width)) / (canvas.width / 10));
             const y = Math.floor(Math.max(Math.min(e.offsetY, canvas.height), 0) / (canvas.height / 10));
             const index = getIndex(x, y);
@@ -226,12 +262,15 @@
                         const prevX = lastSelectedIndex % 10;
                         const prevY = Math.floor(lastSelectedIndex / 10);
 
+                        if (room != null) sendMove(chosenMove, lastSelectedIndex);
                         if (!hasChopAvailable(currentPlayer, {x: x, y: y}, {x: x - prevX > 0 ? -1 : 1, y: y - prevY > 0 ? -1 : 1}) || chosenMove.opponentPieceLocation === null) {
                             if ((currentPlayer == "b" && y == 0) || (currentPlayer == "r" && y == 9)) {
                                 board[getIndex(x, y)] = board[getIndex(x, y)] + "k";
                             }
+                            isMyTurn = !isMyTurn;
                             currentPlayer = currentPlayer === "b" ? "r" : "b";
                         } 
+                        if (room != null) updateState();
                         lastSelectedIndex = null;
                     }
                     currentState = states.PIECE_PICK;
@@ -445,8 +484,152 @@
                     break;
                 }
             }
-       })
+        });
 
+        function sendMove(move, lastSelectedIndex) {
+            ws.send(
+                JSON.stringify({
+                    event: "broadcastroom",
+                    roomCode: room.roomCode,
+                    body: {
+                        event: "move",
+                        move: {
+                            ...move,
+                            lastSelectedIndex
+                        },
+                    },
+                }),
+            );
+        }
+
+        function updateState() {
+            ws.send(
+                JSON.stringify({
+                    event: "updatestate",
+                    roomCode: room.roomCode,
+                    gameState: {
+                        board: board,
+                        currentPlayer: currentPlayer,
+                    }
+                })
+            )
+        }
+
+        function connectToRoom(roomCode, displayName) {
+            fetch(`/numberinroom/${roomCode}`).then(async (res) => {
+                const jsonData = await res.json();
+                if (jsonData["event"] === "givenumberinroom") {
+                    ws.send(
+                        JSON.stringify({
+                            event: "roomconnect",
+                            roomCode: roomCode,
+                            displayName: displayName,
+                            gameName: "checkers",
+                        }),
+                    );
+                } else {
+                    ws.send(
+                        JSON.stringify({
+                            event: "roomconnect",
+                            roomCode: roomCode,
+                            displayName: displayName,
+                            gameName: "checkers",
+                            initialState: {
+                                board: (() => {
+                                    let board = Array(100).fill("");
+                                    for (let i = 0; i < 40; i++) {
+                                        if ((i + Math.floor(i / 10)) % 2 == 0) {
+                                            board[i] = "r";
+                                            board[99 - i] = "b";
+                                        }
+                                    }
+                                    return board;
+                                })(),
+                                currentPlayer: "b",
+                            },
+                        }),
+                    );
+                }
+            });
+        }
+
+        ws.addEventListener("open", () => {
+            console.log("Connected to websocket");
+            ws.addEventListener("message", (e) => {
+                const data = JSON.parse(e.data);
+                if (data["event"] == "roomconnected") {
+                    console.log(
+                        `Connected to room with room code ${data["roomCode"]}`,
+                    );
+                    board = data["gameState"].board;
+                    room = {
+                        roomCode: data["roomCode"],
+                        numberOfPlayers: data["numberOfPlayers"],
+                    };
+
+                    if (room.numberOfPlayers === 1) {
+                        isMyTurn = true;
+                        currentPlayer = "b";
+                    } else {
+                        isMyTurn = false;
+                    }
+                    drawBoard();
+                } else if (data["event"] == "roomnotconnected") {
+                    console.log(
+                        `Could not connect because ${data["reason"]}`,
+                    );
+                } else if (data["event"] == "move") {
+                    const chosenMove = data["move"];
+                    lastSelectedIndex = chosenMove.lastSelectedIndex;
+                    console.log(chosenMove);
+                    // move player
+                    // perform capture
+                    // if reached end king player
+
+                    board[getIndex(chosenMove.x, chosenMove.y)] = board[lastSelectedIndex].replace("h", "");
+                    board[lastSelectedIndex] = "";
+                    possibleMoves = [];
+
+                    // capture
+                    if (chosenMove.opponentPieceLocation !== null) {
+                        board[getIndex(chosenMove.opponentPieceLocation.x, chosenMove.opponentPieceLocation.y)] = "";
+                    }
+
+                    const prevX = lastSelectedIndex % 10;
+                    const prevY = Math.floor(lastSelectedIndex / 10);
+
+                    if (!hasChopAvailable(currentPlayer, {x: chosenMove.x, y: chosenMove.y}, {x: chosenMove.x - prevX > 0 ? -1 : 1, y: chosenMove.y - prevY > 0 ? -1 : 1}) || chosenMove.opponentPieceLocation === null) {
+                        if ((currentPlayer == "b" && chosenMove.y == 0) || (currentPlayer == "r" && chosenMove.y == 9)) {
+                            board[getIndex(chosenMove.x, chosenMove.y)] = board[getIndex(chosenMove.x, chosenMove.y)] + "k";
+                        }
+                        currentPlayer = currentPlayer === "b" ? "r" : "b";
+                        isMyTurn = !isMyTurn;
+                    } 
+                    lastSelectedIndex = null;
+                    currentState = states.PIECE_PICK;
+                    drawBoard();
+
+                    // if (isWon) return;
+                    // const index = data["position"];
+                    // const x = index % 3;
+                    // const y = Math.floor(index / 3);
+
+                    // if (board[index] === "") {
+                    //     board[index] = currentPlayer;
+                    //     drawBoard();
+                    //     const result = checkGameWon(currentPlayer);
+
+                    //     if (result.isWon === true) {
+                    //         drawWinningLine(result.type);
+                    //         isWon = true;
+                    //     }
+                    //     currentPlayer = currentPlayer === "x" ? "o" : "x";
+                    //     isMyTurn = !isMyTurn;
+                    // }
+    
+                }
+            });
+        });
 
         drawBoard();
    </script>

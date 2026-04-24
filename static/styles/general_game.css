@@ -21,23 +21,32 @@ body {
 
 
 #board {
-    width: 720px;
-    height: 720px;
+    width: min(720px, 90vw);
+    height: min(720px, 90vw);
 }
 
 main {
     display: flex;
-    flex-direction: column;
     justify-content: center;
-    align-items: center;
+    flex: 1;
+    padding-top: 15px;
+}
+
+.gameArea {
+    display: flex;
+    flex-direction: column;
+}
+
+.pane {
     flex: 1;
 }
 
 input {
-    padding: 12px;
+    padding: 15px;
     font-family: IntelOneMono;
     background-color: transparent;
     color: white;
+    flex: 1;
     font-size: 15px;
     border: 1px solid #ccc;
     outline: none;
@@ -68,6 +77,8 @@ button:hover {
 
 .room-form > div {
     display: flex;
+    align-items: center;
+    padding-bottom: 15px;
     padding-right: 10px;
 }
 .room-form > div > * {
@@ -77,4 +88,29 @@ button:hover {
 
 label {
     font-size: 18px;
+}
+
+@media screen and (max-width: 760px){
+    .room-form {
+        flex-direction: column;
+    }
+
+    .room-form br {
+        display: none;
+    }
+
+    form button {
+        flex: 1;
+        padding: 10px;
+    }
+
+    input {
+        padding: 10px;
+        padding-right: 0px;
+    }
+
+    .room-form > div {
+        padding-right: 0;
+    }
+    
 }

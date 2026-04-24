@@ -33,7 +33,7 @@ wss.on("connection", (socket) => {
         const jsonData = JSON.parse(data);
         if (jsonData["event"] === "roomconnect") {
             // deny connection if already connected
-            if (socket.isConnected === true) {
+            if (socket.isConnected === true && socket.roomCode == jsonData["roomCode"]) {
                 socket.send(
                     JSON.stringify({
                         event: "roomnotconnected",
@@ -72,7 +72,14 @@ wss.on("connection", (socket) => {
                 }
             }
 
-            console.log(jsonData);
+            if (socket.isConnected == true && socket.roomCode != jsonData["roomCode"]) {
+                rooms[socket.roomCode].sockets = rooms[
+                    socket.roomCode
+                ].sockets.filter((s) => s != socket);
+                if (--rooms[socket.roomCode].numberOfPlayers === 0) {
+                    rooms[socket.roomCode] = null;
+                }
+            }
             // update or create room with new info
             rooms[jsonData["roomCode"]] = {
                 ...rooms[jsonData["roomCode"]],
@@ -94,10 +101,11 @@ wss.on("connection", (socket) => {
 
             if (rooms[jsonData["roomCode"]].sockets == null) {
                 rooms[jsonData["roomCode"]].sockets = [socket];
+                socket.isTurn = true;
             } else {
+                socket.isTurn = !rooms[jsonData["roomCode"]].sockets[0].isTurn;
                 rooms[jsonData["roomCode"]].sockets.push(socket);
             }
-            console.log(rooms);
 
             socket.send(
                 JSON.stringify({
@@ -106,6 +114,7 @@ wss.on("connection", (socket) => {
                     numberOfPlayers:
                         rooms[jsonData["roomCode"]].numberOfPlayers,
                     gameState: rooms[jsonData["roomCode"]].gameState,
+                    isTurn: socket.isTurn,
                 }),
             );
         } else if (jsonData["event"] == "broadcastroom") {
@@ -113,7 +122,6 @@ wss.on("connection", (socket) => {
                 rooms[jsonData["roomCode"]].sockets
                     .filter((s) => s != socket)
                     .forEach((s) => {
-                        console.log("Sent");
                         s.send(JSON.stringify(jsonData["body"]));
                     });
             }
@@ -123,7 +131,24 @@ wss.on("connection", (socket) => {
                 jsonData["gameState"].board != null &&
                 jsonData["gameState"].currentPlayer != null
             ) {
+                socket.isTurn = jsonData["isTurn"];
+                rooms[jsonData["roomCode"]].sockets
+                    .filter((s) => s != socket)
+                    .forEach((s) => {
+                        s.isTurn = !socket.isTurn;
+                    });
                 rooms[jsonData["roomCode"]].gameState = jsonData["gameState"];
+            }
+        } else if (jsonData["event"] == "leaveroom") {
+            if (socket.isConnected === true) {
+                rooms[socket.roomCode].sockets = rooms[
+                    socket.roomCode
+                ].sockets.filter((s) => s != socket);
+                if (--rooms[socket.roomCode].numberOfPlayers === 0) {
+                    rooms[socket.roomCode] = null;
+                }
+                socket.isConnected = false;
+                socket.roomCode = null;
             }
         }
     });
@@ -147,7 +172,7 @@ app.use(express.static("static"));
 app.set("view engine", "ejs");
 
 app.get("/", (req, res) => {
-    res.render("home", { title: "Home" });
+    res.render("home", { title: "Home", games: games});
 });
 
 app.get("/numberinroom/:roomCode", (req, res) => {
@@ -167,4 +192,4 @@ app.get("/numberinroom/:roomCode", (req, res) => {
 const gamesRouter = require("./routes/games");
 app.use("/games", gamesRouter);
 
-server.listen(3000, "localhost");
+server.listen(3000, "0.0.0.0");

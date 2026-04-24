@@ -6,6 +6,11 @@
         <%- include("./partials/navbar.ejs") %>
     </header>
     <main>
+        <div class="gamesGrid">
+            <% for (let game in games) { %>
+                <%= games[game] %>
+            <% } %>
+        </div>
     </main>
 </body>
 
