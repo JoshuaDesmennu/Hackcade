@@ -1,176 +1,377 @@
 <!DOCTYPE html>
 <html lang="en">
     <%- include("./partials/head.ejs") %>
-<body>
-    <header>
-        <%- include("./partials/navbar.ejs") %>
-    </header>
-    <main>
-        <%- include("./partials/form.ejs") %>
-        <canvas id="board"></canvas>
-    </main>
-    <script>
+    <body>
+        <header><%- include("./partials/navbar.ejs") %></header>
+        <main>
+            <%- include("./partials/form.ejs") %>
+            <canvas id="board"></canvas>
+        </main>
+        <script>
+            const ws = new WebSocket("ws://127.0.0.1:3000");
 
-        const canvas = document.getElementById("board");
-        const context = canvas.getContext("2d");
-        const shapeRadius = 70;
-        const boardPadding = 20;
-        canvas.width = 720;
-        canvas.height = 720;
-        context.lineWidth = 5;
-        context.strokeStyle = "white";
-        context.lineCap = "round";
-        let board = [
-            "", "", "", "", "", "", "", "", ""
-        ];
+            const form = document.querySelector("form");
+            const roomCodeInput = document.getElementById("roomCode");
+            const displayNameInput = document.getElementById("displayName");
+            
+            const lastCode = localStorage.getItem("recentRoomCode");
+            const lastName = localStorage.getItem("displayName");
 
-        let currentPlayer = "x";
-        let isWon = false;
+            if (lastCode !== null) roomCodeInput.value = lastCode;
+            if (lastName !== null) lastName.value = lastName;
 
+            let room = null;
+            let isMyTurn = false;
+            let onlineID = null;
 
-        canvas.addEventListener("click", (e) => {
-            if (isWon) return;
-            const x = Math.floor(Math.max(0, Math.min(e.offsetX, canvas.width)) / (canvas.width / 3));
-            const y = Math.floor(Math.max(Math.min(e.offsetY, canvas.height), 0) / (canvas.height / 3));
-            const index = y * 3 + x;
+            const canvas = document.getElementById("board");
+            const context = canvas.getContext("2d");
+            const shapeRadius = 70;
+            const boardPadding = 20;
 
-            if (board[index] === "") {
-                board[index] = currentPlayer;
-                drawBoard();
-                const result = checkGameWon(currentPlayer);
+            canvas.width = 720;
+            canvas.height = 720;
+            context.lineWidth = 5;
+            context.strokeStyle = "white";
+            context.lineCap = "round";
+            let board = ["", "", "", "", "", "", "", "", ""];
 
-                if (result.isWon === true) {
-                    drawWinningLine(result.type);
-                    isWon = true;
-                    return;
+            let currentPlayer = "x";
+            let isWon = false;
+
+            form.addEventListener("submit", (e) => {
+                e.preventDefault();
+                localStorage.setItem("recentRoomCode", form["roomCode"].value);
+                localStorage.setItem("displayName", form["displayName"].value);
+
+                connectToRoom(
+                    form["roomCode"].value,
+                    form["displayName"].value,
+                );
+            });
+
+            canvas.addEventListener("click", (e) => {
+                if (!isMyTurn && room != null) return;
+                if (isWon) return;
+                const x = Math.floor(
+                    Math.max(0, Math.min(e.offsetX, canvas.width)) /
+                        (canvas.width / 3),
+                );
+                const y = Math.floor(
+                    Math.max(Math.min(e.offsetY, canvas.height), 0) /
+                        (canvas.height / 3),
+                );
+                const index = y * 3 + x;
+
+                if (board[index] === "") {
+                    board[index] = currentPlayer;
+                    const result = checkGameWon(currentPlayer);
+                    
+                    drawBoard();
+                    if (result.isWon === true) {
+                        drawWinningLine(result.type);
+                        isWon = true;
+                    }
+                    isMyTurn = !isMyTurn;
+                    if (room != null) sendMove(index);
+                    currentPlayer = currentPlayer === "x" ? "o" : "x";
+                    if (room != null) updateState();
                 }
-                currentPlayer = currentPlayer === "x" ? "o" : "x";
+            });
+
+            function checkGameWon(playerSign) {
+                if (
+                    board[0] === board[1] &&
+                    board[1] === board[2] &&
+                    board[0] === playerSign
+                )
+                    return { isWon: true, type: 1 };
+                if (
+                    board[0] === board[3] &&
+                    board[3] === board[6] &&
+                    board[0] === playerSign
+                )
+                    return { isWon: true, type: 4 };
+                if (
+                    board[0] === board[4] &&
+                    board[4] === board[8] &&
+                    board[0] === playerSign
+                )
+                    return { isWon: true, type: 7 };
+                if (
+                    board[1] === board[4] &&
+                    board[4] === board[7] &&
+                    board[1] === playerSign
+                )
+                    return { isWon: true, type: 5 };
+                if (
+                    board[2] === board[5] &&
+                    board[5] === board[8] &&
+                    board[2] === playerSign
+                )
+                    return { isWon: true, type: 6 };
+                if (
+                    board[2] === board[4] &&
+                    board[4] === board[6] &&
+                    board[2] === playerSign
+                )
+                    return { isWon: true, type: 8 };
+                if (
+                    board[3] === board[4] &&
+                    board[4] === board[5] &&
+                    board[3] === playerSign
+                )
+                    return { isWon: true, type: 2 };
+                if (
+                    board[6] === board[7] &&
+                    board[7] === board[8] &&
+                    board[6] === playerSign
+                )
+                    return { isWon: true, type: 3 };
+                return { isWon: false, type: null };
             }
 
-        })
-
-        function checkGameWon(playerSign) {
-            if (board[0] === board[1] && board[1] === board[2] && board[0] === playerSign) return {isWon: true, type: 1};
-            if (board[0] === board[3] && board[3] === board[6] && board[0] === playerSign) return {isWon: true, type: 4};
-            if (board[0] === board[4] && board[4] === board[8] && board[0] === playerSign) return {isWon: true, type: 7};
-            if (board[1] === board[4] && board[4] === board[7] && board[1] === playerSign) return {isWon: true, type: 5};
-            if (board[2] === board[5] && board[5] === board[8] && board[2] === playerSign) return {isWon: true, type: 6};
-            if (board[2] === board[4] && board[4] === board[6] && board[2] === playerSign) return {isWon: true, type: 8};
-            if (board[3] === board[4] && board[4] === board[5] && board[3] === playerSign) return {isWon: true, type: 2};
-            if (board[6] === board[7] && board[7] === board[8] && board[6] === playerSign) return {isWon: true, type: 3};
-            return {isWon: false, type: null};
-        }
-
-        function drawWinningLine(type) {
-            let x1, y1, x2, y2 = 0;
-            switch (type) {
-                case 1:
-                    x1 = (boardPadding * 3);
-                    x2 = canvas.width - (boardPadding * 3);
-                    y1 = (canvas.height / 6);
-                    y2 = y1;
-                    break;
-                case 2:
-                    x1 = (boardPadding * 3);
-                    x2 = canvas.width - (boardPadding * 3);
-                    y1 = (canvas.height / 3) * 1 + (canvas.height / 6);
-                    y2 = y1;
-                    break;
-                case 3:
-                    x1 = (boardPadding * 3);
-                    x2 = canvas.width - (boardPadding * 3);
-                    y1 = (canvas.height / 3) * 2 + (canvas.height / 6);
-                    y2 = y1;
-                    break;
-                case 4:
-                    y1 = (boardPadding * 3);
-                    y2 = canvas.height - (boardPadding * 3);
-                    x1 = (canvas.width / 6);
-                    x2 = x1;
-                    break;
-                case 5:
-                    y1 = (boardPadding * 3);
-                    y2 = canvas.height - (boardPadding * 3);
-                    x1 = (canvas.width / 3) * 1 + (canvas.width / 6);
-                    x2 = x1;
-                    break;
-                case 6:
-                    y1 = (boardPadding * 3);
-                    y2 = canvas.height - (boardPadding * 3);
-                    x1 = (canvas.width / 3) * 2 + (canvas.width / 6);
-                    x2 = x1;
-                    break;
-                case 7:
-                    y1 = (boardPadding * 3);
-                    x1 = (boardPadding * 3);
-                    y2 = canvas.height - (boardPadding * 3);
-                    x2 = canvas.width - (boardPadding * 3);
-                    break;
-                case 8:
-                    y1 = (boardPadding * 3);
-                    x1 = canvas.width - (boardPadding * 3);
-                    y2 = canvas.height - (boardPadding * 3);
-                    x2 = (boardPadding * 3);
-                    break;
-            }
-            context.lineWidth = 2;
-            context.strokeStyle = "red";
-            context.beginPath();
-            context.moveTo(x1, y1);
-            context.lineTo(x2, y2);
-            context.stroke();
-            context.closePath();
-        }
-
-        
-        function drawBoard() {
-            context.clearRect(0, 0, canvas.width, canvas.height);
-            for (let i = 1; i < 3; i++) {
+            function drawWinningLine(type) {
+                let x1,
+                    y1,
+                    x2,
+                    y2 = 0;
+                switch (type) {
+                    case 1:
+                        x1 = boardPadding * 3;
+                        x2 = canvas.width - boardPadding * 3;
+                        y1 = canvas.height / 6;
+                        y2 = y1;
+                        break;
+                    case 2:
+                        x1 = boardPadding * 3;
+                        x2 = canvas.width - boardPadding * 3;
+                        y1 = (canvas.height / 3) * 1 + canvas.height / 6;
+                        y2 = y1;
+                        break;
+                    case 3:
+                        x1 = boardPadding * 3;
+                        x2 = canvas.width - boardPadding * 3;
+                        y1 = (canvas.height / 3) * 2 + canvas.height / 6;
+                        y2 = y1;
+                        break;
+                    case 4:
+                        y1 = boardPadding * 3;
+                        y2 = canvas.height - boardPadding * 3;
+                        x1 = canvas.width / 6;
+                        x2 = x1;
+                        break;
+                    case 5:
+                        y1 = boardPadding * 3;
+                        y2 = canvas.height - boardPadding * 3;
+                        x1 = (canvas.width / 3) * 1 + canvas.width / 6;
+                        x2 = x1;
+                        break;
+                    case 6:
+                        y1 = boardPadding * 3;
+                        y2 = canvas.height - boardPadding * 3;
+                        x1 = (canvas.width / 3) * 2 + canvas.width / 6;
+                        x2 = x1;
+                        break;
+                    case 7:
+                        y1 = boardPadding * 3;
+                        x1 = boardPadding * 3;
+                        y2 = canvas.height - boardPadding * 3;
+                        x2 = canvas.width - boardPadding * 3;
+                        break;
+                    case 8:
+                        y1 = boardPadding * 3;
+                        x1 = canvas.width - boardPadding * 3;
+                        y2 = canvas.height - boardPadding * 3;
+                        x2 = boardPadding * 3;
+                        break;
+                }
+                context.lineWidth = 2;
+                context.strokeStyle = "#a000c0";
                 context.beginPath();
-                context.moveTo(boardPadding, (canvas.height / 3) * i);
-                context.lineTo(canvas.width - boardPadding, (canvas.height / 3) * i);
+                context.moveTo(x1, y1);
+                context.lineTo(x2, y2);
                 context.stroke();
                 context.closePath();
-
-                context.beginPath();
-                context.moveTo((canvas.width / 3) * i, boardPadding);
-                context.lineTo((canvas.width / 3) * i, canvas.height - boardPadding);
-                context.stroke();
-                context.closePath();
             }
 
-            for (let i = 0; i < 9; i++) {
-                const x = i % 3;
-                const y = Math.floor(i / 3);
-                const tileCenterX = (canvas.width / 3) * x + (canvas.width / 6);
-                const tileCenterY = (canvas.height / 3) * y + (canvas.height / 6);
-
-                if (board[i] === "o") {
+            function drawBoard() {
+                context.clearRect(0, 0, canvas.width, canvas.height);
+                for (let i = 1; i < 3; i++) {
                     context.beginPath();
-                    context.arc(tileCenterX, tileCenterY, shapeRadius, 0, 2 * Math.PI);
-                    context.closePath();
-                    context.stroke();
-                } else if (board[i] === "x") {
-                    context.beginPath();
-                    context.moveTo(tileCenterX - shapeRadius, tileCenterY - shapeRadius);
-                    context.lineTo(tileCenterX + shapeRadius, tileCenterY + shapeRadius);
+                    context.moveTo(boardPadding, (canvas.height / 3) * i);
+                    context.lineTo(
+                        canvas.width - boardPadding,
+                        (canvas.height / 3) * i,
+                    );
                     context.stroke();
                     context.closePath();
 
                     context.beginPath();
-                    context.moveTo(tileCenterX - shapeRadius, tileCenterY + shapeRadius);
-                    context.lineTo(tileCenterX + shapeRadius, tileCenterY - shapeRadius);
+                    context.moveTo((canvas.width / 3) * i, boardPadding);
+                    context.lineTo(
+                        (canvas.width / 3) * i,
+                        canvas.height - boardPadding,
+                    );
                     context.stroke();
                     context.closePath();
                 }
 
+                for (let i = 0; i < 9; i++) {
+                    const x = i % 3;
+                    const y = Math.floor(i / 3);
+                    const tileCenterX =
+                        (canvas.width / 3) * x + canvas.width / 6;
+                    const tileCenterY =
+                        (canvas.height / 3) * y + canvas.height / 6;
+
+                    if (board[i] === "o") {
+                        context.beginPath();
+                        context.arc(
+                            tileCenterX,
+                            tileCenterY,
+                            shapeRadius,
+                            0,
+                            2 * Math.PI,
+                        );
+                        context.closePath();
+                        context.stroke();
+                    } else if (board[i] === "x") {
+                        context.beginPath();
+                        context.moveTo(
+                            tileCenterX - shapeRadius,
+                            tileCenterY - shapeRadius,
+                        );
+                        context.lineTo(
+                            tileCenterX + shapeRadius,
+                            tileCenterY + shapeRadius,
+                        );
+                        context.stroke();
+                        context.closePath();
+
+                        context.beginPath();
+                        context.moveTo(
+                            tileCenterX - shapeRadius,
+                            tileCenterY + shapeRadius,
+                        );
+                        context.lineTo(
+                            tileCenterX + shapeRadius,
+                            tileCenterY - shapeRadius,
+                        );
+                        context.stroke();
+                        context.closePath();
+                    }
+                }
             }
 
-        }
+            function sendMove(position) {
+                ws.send(
+                    JSON.stringify({
+                        event: "broadcastroom",
+                        roomCode: room.roomCode,
+                        body: {
+                            event: "move",
+                            position: position,
+                        },
+                    }),
+                );
+            }
 
+            function updateState() {
+                ws.send(
+                    JSON.stringify({
+                        event: "updatestate",
+                        roomCode: room.roomCode,
+                        gameState: {
+                            board: board,
+                            currentPlayer: currentPlayer,
+                        }
+                    })
+                )
+            }
 
-        drawBoard();
-        
-   </script>
-</body>
+            function connectToRoom(roomCode, displayName) {
+                fetch(`/numberinroom/${roomCode}`).then(async (res) => {
+                    const jsonData = await res.json();
+                    if (jsonData["event"] === "givenumberinroom") {
+                        console.log(jsonData);
+                        ws.send(
+                            JSON.stringify({
+                                event: "roomconnect",
+                                roomCode: roomCode,
+                                displayName: displayName,
+                                gameName: "tictactoe",
+                            }),
+                        );
+                    } else {
+                        console.log(jsonData);
+                        ws.send(
+                            JSON.stringify({
+                                event: "roomconnect",
+                                roomCode: roomCode,
+                                displayName: displayName,
+                                gameName: "tictactoe",
+                                initialState: {
+                                    board: Array(9).fill(""),
+                                    currentPlayer: "x",
+                                },
+                            }),
+                        );
+                    }
+                });
+            }
+
+            ws.addEventListener("open", () => {
+                console.log("Connected to websocket");
+                ws.addEventListener("message", (e) => {
+                    const data = JSON.parse(e.data);
+                    if (data["event"] == "roomconnected") {
+                        console.log(
+                            `Connected to room with room code ${data["roomCode"]}`,
+                        );
+                        board = data["gameState"].board;
+                        room = {
+                            roomCode: data["roomCode"],
+                            numberOfPlayers: data["numberOfPlayers"],
+                        };
+
+                        if (room.numberOfPlayers === 1) {
+                            isMyTurn = true;
+                            currentPlayer = "x";
+                        } else {
+                            isMyTurn = false;
+                        }
+                        console.log(data);
+                        console.log(currentPlayer);
+                        drawBoard();
+                    } else if (data["event"] == "roomnotconnected") {
+                        console.log(
+                            `Could not connect because ${data["reason"]}`,
+                        );
+                    } else if (data["event"] == "move") {
+                        if (isWon) return;
+                        const index = data["position"];
+                        const x = index % 3;
+                        const y = Math.floor(index / 3);
+
+                        if (board[index] === "") {
+                            board[index] = currentPlayer;
+                            drawBoard();
+                            const result = checkGameWon(currentPlayer);
+
+                            if (result.isWon === true) {
+                                drawWinningLine(result.type);
+                                isWon = true;
+                            }
+                            currentPlayer = currentPlayer === "x" ? "o" : "x";
+                            isMyTurn = !isMyTurn;
+                        }
+       
+                    }
+                });
+            });
+
+            drawBoard();
+        </script>
+    </body>
 </html>

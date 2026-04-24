@@ -21,7 +21,6 @@ body {
 
 
 #board {
-    border: 1px solid black;
     width: 720px;
     height: 720px;
 }
@@ -52,7 +51,7 @@ button {
     font-family: IntelOneMono;
     background-color: transparent;
     color: white;
-    font-size: 15px;
+    font-size: 18px;
     border: 1px solid #ccc;
     font-weight: bold;
     transition-property: background-color;
@@ -62,16 +61,16 @@ button:hover {
     background-color: white;
     color: #a000c0;
 }
-form {
+.room-form {
     display: flex;
     padding-bottom: 15px;
 }
 
-form > div {
+.room-form > div {
     display: flex;
     padding-right: 10px;
 }
-form > div > * {
+.room-form > div > * {
     display: block;
     padding-right: 10px;
 }
