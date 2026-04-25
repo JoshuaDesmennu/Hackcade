@@ -8,11 +8,14 @@
                 <%- include("./partials/form.ejs") %>
                 <canvas id="board"></canvas>
                 <div class="game-info">
-                    <span>Connected</span>
-                    <span>You (x) vs (o) Local</span>
-                    <span>X's Turn (You)</span>
+                    <span id="isConnectedText" class="red">Not Connected</span>
+                    <span class="separator">.</span>
+                    <span id="faceOffText">You (x) vs (o) Local</span>
+                    <span class="separator">.</span>
+                    <span id="turnText">X's Turn (You)</span>
                 </div>
             </div>
+            <button id="leaveButton">Leave Room</button>
        </main>
         <script>
             const ws = new WebSocket(`ws://${window.location.host}`);
@@ -20,7 +23,12 @@
             const form = document.querySelector(".room-form");
             const roomCodeInput = document.getElementById("roomCode");
             const displayNameInput = document.getElementById("displayName");
-            const submitButton = document.querySelector(".room-form button")
+            const submitButton = document.querySelector(".room-form button");
+            
+            const isConnectedText = document.getElementById("isConnectedText");
+            const faceOffText = document.getElementById("faceOffText");
+            const turnText = document.getElementById("turnText");
+            const leaveButton = document.getElementById("leaveButton");
             
             const lastCode = localStorage.getItem("recentRoomCode");
             const lastName = localStorage.getItem("displayName");
@@ -97,6 +105,7 @@
                     isMyTurn = !isMyTurn;
                     if (room != null) sendMove(index);
                     currentPlayer = currentPlayer === "x" ? "o" : "x";
+                    turnText.innerText = `${currentPlayer.toUpperCase()}'s Turn (${isMyTurn ? "You" : "Opponent"})`;
                     if (room != null) updateState();
                 }
             });
@@ -358,6 +367,19 @@
 
                         currentPlayer = data["gameState"].currentPlayer;
                         isMyTurn = data["isTurn"];
+                        isConnectedText.innerText = "Connected";
+                        isConnectedText.className = "green";
+                        const mySign = isMyTurn ? currentPlayer : (currentPlayer === "x" ? "o" : "x");
+                        faceOffText.innerText = `You (${mySign}) vs (${mySign == "x" ? "o" : "x"}) ${data["opponentName"]}`;
+                        turnText.innerText = `${currentPlayer.toUpperCase()}'s Turn (${isMyTurn ? "You" : "Opponent"})`;
+                        ws.send(JSON.stringify({
+                            event: "broadcastroom",
+                            roomCode: room.roomCode,
+                            body: {
+                                event: "justjoined",
+                                displayName: localStorage.getItem("displayName"),
+                            }
+                        }))
                         drawBoard();
                     } else if (data["event"] == "roomnotconnected") {
                         console.log(
@@ -380,8 +402,11 @@
                             }
                             currentPlayer = currentPlayer === "x" ? "o" : "x";
                             isMyTurn = !isMyTurn;
+                            turnText.innerText = `${currentPlayer.toUpperCase()}'s Turn (${isMyTurn ? "You" : "Opponent"})`;
                         }
-       
+                    } else if (data["event"] == "justjoined") {
+                        const mySign = isMyTurn ? currentPlayer : (currentPlayer === "x" ? "o" : "x");
+                        faceOffText.innerText = `You (${mySign}) vs (${mySign == "x" ? "o" : "x"}) ${data["displayName"]}`;
                     }
                 });
             });

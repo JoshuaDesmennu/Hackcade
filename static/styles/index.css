@@ -1,12 +1,14 @@
 .navbar {
+    position: sticky;
     padding: 20px;
     background-color: #a000a0;
     display: flex;
     align-items: center;
+
 }
 
 .navbar-title {
-    font-size: 2.5em;
+    font-size: 2em;
     font-weight: bold;
 }
 
@@ -23,6 +25,14 @@
     text-decoration: none;
 }
 
+.red {
+    color: red;
+}
+
+.green {
+    color: green;
+}
+
 .navbar-action:hover {
     text-decoration: underline;
     text-underline-offset: 3px;
@@ -30,10 +40,6 @@
 }
 
 @media screen and (max-width: 760px){
-    .navbar-title {
-        font-size: 2.0em;
-    }
-
     .navbar-action {
         display: none;
     }

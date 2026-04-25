@@ -98,6 +98,7 @@ wss.on("connection", (socket) => {
 
             socket.roomCode = jsonData["roomCode"];
             socket.isConnected = true;
+            socket.displayName = jsonData["displayName"];
 
             if (rooms[jsonData["roomCode"]].sockets == null) {
                 rooms[jsonData["roomCode"]].sockets = [socket];
@@ -115,6 +116,7 @@ wss.on("connection", (socket) => {
                         rooms[jsonData["roomCode"]].numberOfPlayers,
                     gameState: rooms[jsonData["roomCode"]].gameState,
                     isTurn: socket.isTurn,
+                    opponentName: rooms[jsonData["roomCode"]].sockets.length > 1 ? rooms[jsonData["roomCode"]].sockets.filter((s) => s !== socket)[0].displayName : "Nobody",
                 }),
             );
         } else if (jsonData["event"] == "broadcastroom") {
