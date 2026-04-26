@@ -4,6 +4,7 @@
     <body>
         <header><%- include("./partials/navbar.ejs") %></header>
         <main>
+            <button id="hideFormButton" class="form-shown">Hide Form</button>
             <div class="gameArea">
                 <%- include("./partials/form.ejs") %>
                 <canvas id="board"></canvas>
@@ -12,18 +13,28 @@
                     <span class="separator">.</span>
                     <span id="faceOffText">You (x) vs (o) Local</span>
                     <span class="separator">.</span>
-                    <span id="turnText">X's Turn (You)</span>
+                    <span id="turnText" class="green">X's Turn (You)</span>
                 </div>
             </div>
-            <button id="leaveButton">Leave Room</button>
+            <div class="actionButtons">
+                <button id="leaveButton">Leave Room</button>
+                <button id="restartButton">Restart Game</button>
+            </div>
        </main>
         <script>
+            // definition of variables
             const ws = new WebSocket(`ws://${window.location.host}`);
 
             const form = document.querySelector(".room-form");
             const roomCodeInput = document.getElementById("roomCode");
             const displayNameInput = document.getElementById("displayName");
             const submitButton = document.querySelector(".room-form button");
+            const hideFormButton = document.getElementById("hideFormButton");
+            const showNavbarActions = document.getElementById("navbarDropdownButton");
+            const navbarLine = document.getElementById("navbarLine");
+            const navbarActions = document.getElementById("navbarActions");
+            const restartButton = document.getElementById("restartButton");
+            const mediaQuery = window.matchMedia("(max-width: 760px)");
             
             const isConnectedText = document.getElementById("isConnectedText");
             const faceOffText = document.getElementById("faceOffText");
@@ -33,25 +44,32 @@
             const lastCode = localStorage.getItem("recentRoomCode");
             const lastName = localStorage.getItem("displayName");
 
+            let isRoomLeader = false;
+            let isNavbarToggled = false;
+
+            // fill the form with the last values entered
             if (lastCode != null) roomCodeInput.value = lastCode;
             if (lastName != null) displayNameInput.value = lastName;
 
             let room = null;
             let isMyTurn = false;
-            let onlineID = null;
             
             const canvas = document.getElementById("board");
             const context = canvas.getContext("2d");
-           
+            
+            // get dimension-related properties of gameboard
             canvas.width = canvas.getBoundingClientRect().width;
             let previousWidth = canvas.width;
             canvas.height = canvas.width;
             let shapeRadius = 70 * (canvas.width / 720);
             let boardPadding = 20 * (canvas.width / 720);
- 
-            const getBoardDimensions = () => {
+            
+            // updates the dimension-related properties of the gameboard with new dimensions
+            const updateBoardDimensions = () => {
                 const newWidth = canvas.getBoundingClientRect().width;
                 if (newWidth === previousWidth) return;
+
+                // sync with animation redraw
                 requestAnimationFrame(() => {
                     previousWidth = newWidth;
                     canvas.width = newWidth;
@@ -69,6 +87,41 @@
             let currentPlayer = "x";
             let isWon = false;
 
+            // toggle navbar dropdown on or off
+            showNavbarActions.addEventListener("click", () => {
+                isNavbarToggled = !isNavbarToggled;
+                if (isNavbarToggled) {
+                    navbarLine.className = "navbar-line";
+                    navbarActions.className = "navbar-actions"
+                    showNavbarActions.innerHTML = "&#x25B2;";
+                } else {
+                    navbarLine.className = "navbar-line hidden";
+                    navbarActions.className = "navbar-actions hidden";
+                    showNavbarActions.innerHTML = "&#x25BC;";
+                }
+            });
+
+            // leave room on click
+            leaveButton.addEventListener('click', (e) => {
+                leaveRoom();
+            })
+            
+            // changes styles of navbar based on screen dimensions
+            function handleMediaChange(e) {
+                navbarLine.className = "navbar-line hidden";
+                isNavbarToggled = false;
+                if (e.matches) {
+                    showNavbarActions.innerHTML = "&#x25BC;";
+                    navbarActions.className = "navbar-actions hidden"
+                    showNavbarActions.className = "";
+                } else {
+                    showNavbarActions.className = "hidden";
+                    navbarActions.className = "navbar-actions"
+                }
+            }
+            mediaQuery.addEventListener("change", handleMediaChange);
+
+            // connect to room on submit and save values
             form.addEventListener("submit", (e) => {
                 e.preventDefault();
                 localStorage.setItem("recentRoomCode", form["roomCode"].value);
@@ -80,9 +133,23 @@
                 );
             });
 
+            // toggle room form on or off
+            hideFormButton.addEventListener("click", () => {
+                if (form.classList.contains("hidden")) {
+                    form.classList.remove("hidden");
+                    hideFormButton.innerText = "Hide Form";
+                } else {
+                    form.classList.add("hidden");
+                    hideFormButton.innerText = "Show Form";
+                }
+            });
+
+            // handle when a user clicks on the canvas (tries to make a move)
             canvas.addEventListener("click", (e) => {
                 if (!isMyTurn && room != null) return;
                 if (isWon) return;
+
+                // get position of click relative to board (x, y)
                 const x = Math.floor(
                     Math.max(0, Math.min(e.offsetX, canvas.width)) /
                         (canvas.width / 3),
@@ -93,21 +160,45 @@
                 );
                 const index = y * 3 + x;
 
+                // add move if spot is empty
                 if (board[index] === "") {
                     board[index] = currentPlayer;
                     const result = checkGameWon(currentPlayer);
                     
                     drawBoard();
+
+                    // if local player has won game, broadcast the fact
                     if (result.isWon === true) {
                         drawWinningLine(result.type);
                         isWon = true;
+
+                        turnText.innerText = `${currentPlayer.toUpperCase()} Wins (You)`;
+                        turnText.style.color = "gold";
+
+                        isMyTurn = !isMyTurn;
+                        if (room != null) sendMove(index);
+
+                        if (room != null) {
+                            ws.send(JSON.stringify({
+                                event: "broadcastroom",
+                                roomCode: room.roomCode,
+                                body: {
+                                    event: "won",
+                                    player: currentPlayer
+                                }
+                            }));
+                        }
+                        currentPlayer = currentPlayer === "x" ? "o" : "x";
+                        if (room != null) updateState();
+                    } else {
+                        isMyTurn = !isMyTurn;
+                        if (room != null) sendMove(index);
+                        currentPlayer = currentPlayer === "x" ? "o" : "x";
+                        turnText.innerText = `${currentPlayer.toUpperCase()}'s Turn (${isMyTurn ? "You" : "Opponent"})`;
+                        turnText.style.color = isMyTurn ? "green" : "white";
+                        if (room != null) updateState();
                     }
-                    isMyTurn = !isMyTurn;
-                    if (room != null) sendMove(index);
-                    currentPlayer = currentPlayer === "x" ? "o" : "x";
-                    turnText.innerText = `${currentPlayer.toUpperCase()}'s Turn (${isMyTurn ? "You" : "Opponent"})`;
-                    if (room != null) updateState();
-                }
+               }
             });
 
             function checkGameWon(playerSign) {
@@ -224,6 +315,8 @@
                 context.lineTo(x2, y2);
                 context.stroke();
                 context.closePath();
+                context.strokeStyle = "white";
+                context.lineWidth = 5;
             }
 
             function drawBoard() {
@@ -316,13 +409,49 @@
                         gameState: {
                             board: board,
                             currentPlayer: currentPlayer,
+                            isWon: isWon,
                         },
                         isTurn: isMyTurn,
                     })
                 )
             }
 
+            function leaveRoom() {
+                if (room == null) return;
+                 ws.send(
+                    JSON.stringify({
+                        event: "broadcastroom",
+                        roomCode: room.roomCode,
+                        body: {
+                            event: "leaving",
+                        },
+                    }),
+                );
+                ws.send(
+                    JSON.stringify(
+                        {
+                            event: "leaveroom",
+                        }
+                    )
+                )
+                isWon = false;
+                room = null;
+                isConnectedText.innerText = "Not Connected";
+                isConnectedText.className = "red";
+                faceOffText.innerText = "You (x) vs (o) Local";
+                turnText.innerText = "X's turn (You)"
+                turnText.className = "green";
+                currentPlayer = "x";
+                isMyTurn = true;
+                board = Array(9).fill("");
+                drawBoard();
+            }
+
             function connectToRoom(roomCode, displayName) {
+                room = null;
+                isWon = false;
+                // get the number of people in the room
+                // if first person, send initial state as well as info
                 fetch(`/numberinroom/${roomCode}`).then(async (res) => {
                     const jsonData = await res.json();
                     if (jsonData["event"] === "givenumberinroom") {
@@ -344,6 +473,7 @@
                                 initialState: {
                                     board: Array(9).fill(""),
                                     currentPlayer: "x",
+                                    isWon: false,
                                 },
                             }),
                         );
@@ -351,6 +481,34 @@
                 });
             }
 
+            function restartGame() {
+                if (!isRoomLeader && room != null) return;
+                isWon = false;
+                turnText.innerText = "X's turn (You)"
+                turnText.style.color = "green";
+                currentPlayer = "x";
+                isMyTurn = isRoomLeader || (room == null);
+                board = Array(9).fill("");
+
+                if (room != null) {
+                    updateState();
+                    ws.send(JSON.stringify({
+                        event: "broadcastroom",
+                        roomCode: room.roomCode,
+                        body: {
+                            event: "restart",
+                        }
+                    }))
+                }
+
+                drawBoard();
+            }
+
+            restartButton.addEventListener("click", () => {
+                restartGame();
+            })
+
+            // socket handle
             ws.addEventListener("open", () => {
                 console.log("Connected to websocket");
                 ws.addEventListener("message", (e) => {
@@ -366,12 +524,14 @@
                         };
 
                         currentPlayer = data["gameState"].currentPlayer;
+                        isRoomLeader = data["isRoomLeader"];
                         isMyTurn = data["isTurn"];
                         isConnectedText.innerText = "Connected";
                         isConnectedText.className = "green";
                         const mySign = isMyTurn ? currentPlayer : (currentPlayer === "x" ? "o" : "x");
                         faceOffText.innerText = `You (${mySign}) vs (${mySign == "x" ? "o" : "x"}) ${data["opponentName"]}`;
                         turnText.innerText = `${currentPlayer.toUpperCase()}'s Turn (${isMyTurn ? "You" : "Opponent"})`;
+                        turnText.style.color = isMyTurn ? "green" : "white";
                         ws.send(JSON.stringify({
                             event: "broadcastroom",
                             roomCode: room.roomCode,
@@ -382,35 +542,57 @@
                         }))
                         drawBoard();
                     } else if (data["event"] == "roomnotconnected") {
-                        console.log(
+                        alert(
                             `Could not connect because ${data["reason"]}`,
                         );
+
                     } else if (data["event"] == "move") {
                         if (isWon) return;
-                        const index = data["position"];
-                        const x = index % 3;
+                        const index = data["position"]; const x = index % 3;
                         const y = Math.floor(index / 3);
 
                         if (board[index] === "") {
                             board[index] = currentPlayer;
                             drawBoard();
                             const result = checkGameWon(currentPlayer);
-
                             if (result.isWon === true) {
                                 drawWinningLine(result.type);
                                 isWon = true;
+
+                                turnText.innerText = `${currentPlayer.toUpperCase()} Wins (Opponent)`;
+                                turnText.style.color = "#ccc";
+
+                                isMyTurn = !isMyTurn;
+
+                                currentPlayer = currentPlayer === "x" ? "o" : "x";
+                            } else {
+                                isMyTurn = !isMyTurn;
+                                currentPlayer = currentPlayer === "x" ? "o" : "x";
+                                turnText.innerText = `${currentPlayer.toUpperCase()}'s Turn (${isMyTurn ? "You" : "Opponent"})`;
+                                turnText.style.color = isMyTurn ? "green" : "white";
                             }
-                            currentPlayer = currentPlayer === "x" ? "o" : "x";
-                            isMyTurn = !isMyTurn;
-                            turnText.innerText = `${currentPlayer.toUpperCase()}'s Turn (${isMyTurn ? "You" : "Opponent"})`;
                         }
                     } else if (data["event"] == "justjoined") {
+                        // update the versus text
                         const mySign = isMyTurn ? currentPlayer : (currentPlayer === "x" ? "o" : "x");
                         faceOffText.innerText = `You (${mySign}) vs (${mySign == "x" ? "o" : "x"}) ${data["displayName"]}`;
+                    } else if (data["event"] == "leaving") {
+                        const mySign = isMyTurn ? currentPlayer : (currentPlayer === "x" ? "o" : "x");
+                        faceOffText.innerText = `You (${mySign}) vs (${mySign == "x" ? "o" : "x"}) Nobody`;
+                    } else if (data["event"] == "restart") {
+                        isWon = false;
+                        turnText.innerText = "X's turn (Opponent)"
+                        turnText.style.color = "white";
+                        currentPlayer = "x";
+                        isMyTurn = isRoomLeader || (room == null);
+                        board = Array(9).fill("");
+
+                        drawBoard();
                     }
                 });
             });
 
+            handleMediaChange(mediaQuery);
             drawBoard();
         </script>
     </body>

@@ -73,13 +73,24 @@ button {
     transition-property: background-color;
     transition-duration: 150ms;
 }
-button:hover {
-    background-color: white;
-    color: #a000c0;
+
+@media (hover: hover) {
+    button:hover {
+        background-color: white;
+        color: #a000c0;
+    }
+    #leaveButton:hover {
+        color: red;
+    }
 }
+
 .room-form {
     display: flex;
     padding-bottom: 15px;
+}
+
+.hidden {
+    display: none;
 }
 
 .room-form > div {
@@ -88,6 +99,7 @@ button:hover {
     padding-bottom: 15px;
     padding-right: 10px;
 }
+
 .room-form > div > * {
     display: block;
     padding-right: 10px;
@@ -101,17 +113,32 @@ label {
     padding: 20px 0;
     display: flex;
     justify-content: space-around;
-    font-size: 18px;
+    font-size: 1.25em;
+}
+
+#hideFormButton {
+    width: min(720px, 90vw);
+}
+
+.form-shown {
+    margin-bottom: 30px;
+}
+
+.actionButtons {
+    width: min(720px, 90vw);
+    display: flex;
+    flex-direction: row;
+}
+
+.actionButtons > button {
+    flex: 1;
 }
 
 #leaveButton {
-    width: min(720px, 90vw);
     color: red;
 }
 
-#leaveButton:hover {
-    color: red;
-}
+
 
 @media screen and (max-width: 760px){
     .room-form {
@@ -140,4 +167,9 @@ label {
     .room-form > div {
         padding-right: 0;
     }
+
+    .actionButtons {
+        flex-direction: column-reverse;
+    }
+
 }
