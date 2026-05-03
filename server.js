@@ -43,6 +43,7 @@ wss.on("connection", (socket) => {
                         reason: "already connected",
                     }),
                 );
+                return;
             }
             // deny access if room alr exists with a different game
             if (rooms[jsonData["roomCode"]] != null) {
@@ -89,6 +90,9 @@ wss.on("connection", (socket) => {
                     games[socket.gameName].totalRooms--;
                 } else {
                     rooms[socket.roomCode].sockets[0].isRoomLeader = true;
+                    rooms[socket.roomCode].sockets[0].send(JSON.stringify({
+                        event: "leader",
+                    }))
                 }
 
             }
@@ -175,7 +179,10 @@ wss.on("connection", (socket) => {
                     games[socket.gameName].totalRooms--;
                 } else {
                     rooms[socket.roomCode].sockets[0].isRoomLeader = true;
-                }
+                    rooms[socket.roomCode].sockets[0].send(JSON.stringify({
+                        event: "leader",
+                    }))
+               }
                 socket.isConnected = false;
                 socket.roomCode = null;
             }
@@ -195,8 +202,10 @@ wss.on("connection", (socket) => {
                 games[socket.gameName].totalRooms--;
             } else {
                 rooms[socket.roomCode].sockets[0].isRoomLeader = true;
+                rooms[socket.roomCode].sockets[0].send(JSON.stringify({
+                    event: "leader",
+                }))
             }
-
             socket.isConnected = false;
             socket.roomCode = null;
         }

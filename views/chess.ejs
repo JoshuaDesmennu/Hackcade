@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="en">
+<%- include("./partials/head.ejs") %>
+<body>
+    <header><%- include("./partials/navbar.ejs") %></header>
+    <main>
+        <button id="hideFormButton" class="form-shown">Hide Form</button>
+        <div class="gameArea">
+            <%- include("./partials/form.ejs") %>
+            <canvas id="board"></canvas>
+            <div class="game-info">
+                <span id="isConnectedText" class="red">Not Connected</span>
+                <span class="separator">.</span>
+                <span id="faceOffText">You (White) vs (Black) Local</span>
+                <span class="separator">.</span>
+                <span id="turnText" class="green">White's Turn (You)</span>
+            </div>
+        </div>
+        <div class="actionButtons">
+            <button id="leaveButton">Leave Room</button>
+            <button id="restartButton">Restart Game</button>
+        </div>
+        <div class="hidden">
+        </div>
+    </main>
+
+    <script>
+    const pieces = [
+        "bb", "bw", "rb", "rw", "nb", "nw", "kb", "kw", "qb", "qw", "pb", "pw"
+    ];
+
+    function loadImages(srcs) {
+        return Promise.all(
+            srcs.map(src => {
+                return new Promise((resolve, reject) => {
+                    const img = new Image();
+                    img.src = src;
+                    img.onload = () => resolve(img);
+                    img.onerror = reject;
+                });
+            })
+        );
+    }
+
+    // load chesspieces first
+    loadImages(pieces.map((name) => `/pieces/${name}.svg`)).then(images => {
+        const pieceImages = images.reduce((acc, currentValue, index) => {
+            acc[pieces[index]] = currentValue;
+            return acc;
+        }, {});
+        console.log(pieceImages);
+        const ws = new WebSocket(`ws://${window.location.host}`);
+
+        const form = document.querySelector(".room-form");
+        const roomCodeInput = document.getElementById("roomCode");
+        const displayNameInput = document.getElementById("displayName");
+        const submitButton = document.querySelector(".room-form button");
+        const hideFormButton = document.getElementById("hideFormButton");
+        const showNavbarActions = document.getElementById("navbarDropdownButton");
+        const navbarLine = document.getElementById("navbarLine");
+        const navbarActions = document.getElementById("navbarActions");
+        const restartButton = document.getElementById("restartButton");
+        const mediaQuery = window.matchMedia("(max-width: 760px)");
+
+        const isConnectedText = document.getElementById("isConnectedText");
+        const faceOffText = document.getElementById("faceOffText");
+        const turnText = document.getElementById("turnText");
+        const leaveButton = document.getElementById("leaveButton");
+
+        let hasCastledKingside = false;
+        let hasCastledQueenside = false;
+
+        function getPiecePositions(board) {
+            let piecePositions = {
+                "W": {},
+                "B": {},
+            }
+            for (let i = 0; i < 64; i++) {
+                if (board[i] != "") {
+                    let currentPiece = board[i];
+                    if (piecePositions[currentPiece[1]][currentPiece[0]] == null) {
+                        piecePositions[currentPiece[1]][currentPiece[0]] = [i];
+                    } else {
+                        piecePositions[currentPiece[1]][currentPiece[0]].push(i);
+                    }
+                }
+            }
+            return piecePositions;
+        }
+
+        function getPossibleMoves(x, y) {
+            const index = getIndex(x, y);
+            const piece = board[index];
+            const type = board[index].charAt(0);
+
+            let possibleMoves = [];
+
+            switch (type) {
+                case "n": {
+                    if (x - 2 >= 0) {
+                        if (y - 1 >= 0) possibleMoves.push({x: x-2, y: y-1});
+                        if (y + 1 < tileDimension) possibleMoves.push({x: x-2, y: y+1});
+                    }
+                    if (x + 2 < tileDimension) {
+                        if (y - 1 >= 0) possibleMoves.push({x: x+2, y: y-1});
+                        if (y + 1 < tileDimension) possibleMoves.push({x: x+2, y: y+1});
+                    }
+                    if (y - 2 >= 0) {
+                        if (x - 1 >= 0) possibleMoves.push({y: y-2, x: x-1});
+                        if (x + 1 < tiledimension) possiblemoves.push({y: y-2, x: x+1});
+                    }
+                    if (y + 2 < tileDimension) {
+                        if (x - 1 >= 0) possibleMoves.push({y: y+2, x: x-1});
+                        if (x + 1 < tileDimension) possibleMoves.push({y: y+2, x: x+1});
+                    }
+                    break;
+                }
+                case "b": {
+                    for (let i = 1; i < tileDimension && x - i >= 0 && y - i >= 0; i++) {
+                        if (board[getIndex(x-i, y-i)] !== "") break;
+                        possibleMoves.push({x: x - i, y: y - i, opponentPieceLocation: null});
+                    }
+                    for (let i = 1; i < tileDimension && x - i >= 0 && y + i < tileDimension; i++) {
+                        if (board[getIndex(x-i, y+i)] !== "") break;
+                        possibleMoves.push({x: x - i, y: y + i, opponentPieceLocation: null});
+                    }
+                    for (let i = 1; i < tileDimension && x + i < 10 && y - i >= 0; i++) {
+                        if (board[getIndex(x+i, y-i)] !== "") break;
+                        possibleMoves.push({x: x + i, y: y - i, opponentPieceLocation: null});
+                    }
+                    for (let i = 1; i < tileDimension && x + i < 10 && y + i < tileDimension; i++) {
+                        if (board[getIndex(x+i, y+i)] !== "") break;
+                        possibleMoves.push({x: x + i, y: y + i, opponentPieceLocation: null});
+                    } 
+                    break;
+                }
+                case "r": {
+                    for (let i = 1; i < tileDimension && x - i >= 0; i++) {
+                        if (board[getIndex(x - i, y)] !== "") break;
+                        possibleMoves.push({x: x - i, y: y});
+                    }
+                    for (let i = 1; i < tileDimension && x + i < 10; i++) {
+                        if (board[getIndex(x + i, y)] !== "") break;
+                        possibleMoves.push({x: x + i, y: y});
+                    }
+                    for (let i = 1; i < tileDimension && y - i >= 0; i++) {
+                        if (board[getIndex(x, y - i)] !== "") break;
+                        possibleMoves.push({x: x, y: y - i});
+                    }
+                    for (let i = 1; i < tileDimension && y + i < 10; i++) {
+                        if (board[getIndex(x, y + i)] !== "") break;
+                        possibleMoves.push({x: x, y: y + i});
+                    }
+                    break;
+                }
+                case "q": {
+                    for (let i = 1; i < tileDimension && x - i >= 0 && y - i >= 0; i++) {
+                        if (board[getIndex(x-i, y-i)] !== "") break;
+                        possibleMoves.push({x: x - i, y: y - i, opponentPieceLocation: null});
+                    }
+                    for (let i = 1; i < tileDimension && x - i >= 0 && y + i < tileDimension; i++) {
+                        if (board[getIndex(x-i, y+i)] !== "") break;
+                        possibleMoves.push({x: x - i, y: y + i, opponentPieceLocation: null});
+                    }
+                    for (let i = 1; i < tileDimension && x + i < 10 && y - i >= 0; i++) {
+                        if (board[getIndex(x+i, y-i)] !== "") break;
+                        possibleMoves.push({x: x + i, y: y - i, opponentPieceLocation: null});
+                    }
+                    for (let i = 1; i < tileDimension && x + i < 10 && y + i < tileDimension; i++) {
+                        if (board[getIndex(x+i, y+i)] !== "") break;
+                        possibleMoves.push({x: x + i, y: y + i, opponentPieceLocation: null});
+                    } 
+                    for (let i = 1; i < tileDimension && x - i >= 0; i++) {
+                        if (board[getIndex(x - i, y)] !== "") break;
+                        possibleMoves.push({x: x - i, y: y});
+                    }
+                    for (let i = 1; i < tileDimension && x + i < 10; i++) {
+                        if (board[getIndex(x + i, y)] !== "") break;
+                        possibleMoves.push({x: x + i, y: y});
+                    }
+                    for (let i = 1; i < tileDimension && y - i >= 0; i++) {
+                        if (board[getIndex(x, y - i)] !== "") break;
+                        possibleMoves.push({x: x, y: y - i});
+                    }
+                    for (let i = 1; i < tileDimension && y + i < 10; i++) {
+                        if (board[getIndex(x, y + i)] !== "") break;
+                        possibleMoves.push({x: x, y: y + i});
+                    }
+                    break;
+                }
+                case "k": {
+                    for (let i = 1; i < tileDimension && x - i >= 0 && y - i >= 0; i++) {
+                        if (board[getIndex(x-i, y-i)] !== "") break;
+                        possibleMoves.push({x: x - i, y: y - i, opponentPieceLocation: null});
+                    }
+                    for (let i = 1; i < tileDimension && x - i >= 0 && y + i < tileDimension; i++) {
+                        if (board[getIndex(x-i, y+i)] !== "") break;
+                        possibleMoves.push({x: x - i, y: y + i, opponentPieceLocation: null});
+                    }
+                    for (let i = 1; i < tileDimension && x + i < 10 && y - i >= 0; i++) {
+                        if (board[getIndex(x+i, y-i)] !== "") break;
+                        possibleMoves.push({x: x + i, y: y - i, opponentPieceLocation: null});
+                    }
+                    for (let i = 1; i < tileDimension && x + i < 10 && y + i < tileDimension; i++) {
+                        if (board[getIndex(x+i, y+i)] !== "") break;
+                        possibleMoves.push({x: x + i, y: y + i, opponentPieceLocation: null});
+                    } 
+                    for (let i = 1; i < tileDimension && x - i >= 0; i++) {
+                        if (board[getIndex(x - i, y)] !== "") break;
+                        possibleMoves.push({x: x - i, y: y});
+                    }
+                    for (let i = 1; i < tileDimension && x + i < 10; i++) {
+                        if (board[getIndex(x + i, y)] !== "") break;
+                        possibleMoves.push({x: x + i, y: y});
+                    }
+                    for (let i = 1; i < tileDimension && y - i >= 0; i++) {
+                        if (board[getIndex(x, y - i)] !== "") break;
+                        possibleMoves.push({x: x, y: y - i});
+                    }
+                    for (let i = 1; i < tileDimension && y + i < 10; i++) {
+                        if (board[getIndex(x, y + i)] !== "") break;
+                        possibleMoves.push({x: x, y: y + i});
+                    }
+                    break;
+                }
+            }
+            return possibleMoves;
+        }
+    
+        function createDefaultBoard() {
+            // let board = ["rB", "nB", "bB", "qB", "kB", "bB", "nB", "rB", ...Array(8).fill("pB"), ...Array(32).fill(""), ...Array(8).fill("pW"), "rW", "nW", "bW", "qW", "kW", "bW", "nW", "rW"]; 
+            let board = Array(64).fill("");
+            return board;
+        }
+
+        const tileDimension = 8;
+
+        const lastCode = localStorage.getItem("recentRoomCode");
+        const lastName = localStorage.getItem("displayName");
+
+        if (lastCode !== null) roomCodeInput.value = lastCode;
+        if (lastName !== null) displayNameInput.value = lastName;
+
+        let isRoomLeader = false;
+        let isNavbarToggled = false;
+
+        let room = null;
+        let isMyTurn = false;
+    
+        let possibleMoves = [];
+        let opponentLastMoves = [];
+        
+        let board = createDefaultBoard();
+        let piecePositions = getPiecePositions(board);
+        
+        let currentPlayer = "W";
+        let isWon = false;
+        let lastSelectedIndex = null;
+        
+        const states = {
+            PIECE_PICK: 0,
+            MOVE_PICK: 1,
+        };
+        let currentState = states.PIECE_PICK;
+
+        const canvas = document.getElementById("board");
+        const context = canvas.getContext("2d");
+       
+        canvas.width = canvas.getBoundingClientRect().width;
+        let previousWidth = canvas.width;
+        canvas.height = canvas.width;
+        let possibleModeCircleRadius = 25 * (canvas.width / 720);
+        let tileWidth = canvas.width / tileDimension;
+        let tileHeight = canvas.height / tileDimension;
+               
+        // updates the dimension-related properties of the gameboard with new dimensions
+        const updateBoardDimensions = () => {
+            const newWidth = canvas.getBoundingClientRect().width;
+            if (newWidth === previousWidth) return;
+
+            // sync with animation redraw
+            requestAnimationFrame(() => {
+                previousWidth = newWidth;
+                canvas.width = newWidth;
+                canvas.height = newWidth;
+                tileWidth = canvas.width / tileDimension;
+                tileHeight = canvas.height / tileDimension;
+
+                possibleModeCircleRadius = 25 * (canvas.width / 720);
+                drawBoard();
+                for (let move of possibleMoves) {
+                    drawPossibleMoveCircle(move.x, move.y);
+                }
+
+            })
+        };
+
+        // toggle navbar dropdown on or off
+        showNavbarActions.addEventListener("click", () => {
+            isNavbarToggled = !isNavbarToggled;
+            if (isNavbarToggled) {
+                navbarLine.className = "navbar-line";
+                navbarActions.className = "navbar-actions"
+                showNavbarActions.innerHTML = "&#x25B2;";
+            } else {
+                navbarLine.className = "navbar-line hidden";
+                navbarActions.className = "navbar-actions hidden";
+                showNavbarActions.innerHTML = "&#x25BC;";
+            }
+        });
+
+
+        // leave room on click
+        leaveButton.addEventListener('click', (e) => {
+            leaveRoom();
+        })
+
+        // changes styles of navbar based on screen dimensions
+        function handleMediaChange(e) {
+            navbarLine.className = "navbar-line hidden";
+            isNavbarToggled = false;
+            if (e.matches) {
+                showNavbarActions.innerHTML = "&#x25BC;";
+                navbarActions.className = "navbar-actions hidden"
+                showNavbarActions.className = "";
+            } else {
+                showNavbarActions.className = "hidden";
+                navbarActions.className = "navbar-actions"
+            }
+        }
+        mediaQuery.addEventListener("change", handleMediaChange);
+
+        form.addEventListener("submit", (e) => {
+            e.preventDefault();
+            localStorage.setItem("recentRoomCode", form["roomCode"].value);
+            localStorage.setItem("displayName", form["displayName"].value);
+            
+            connectToRoom(
+                form["roomCode"].value,
+                form["displayName"].value,
+            );
+        });
+
+        canvas.addEventListener("click", (e) => {
+            if (!isMyTurn && room != null) return;
+            if (isWon) return;
+            const x = Math.floor(Math.max(0, Math.min(e.offsetX, canvas.width)) / (tileWidth));
+            const y = Math.floor(Math.max(Math.min(e.offsetY, canvas.height), 0) / (tileHeight));
+            const index = getIndex(x, y);
+
+            switch (currentState) {
+                case states.MOVE_PICK: {
+                    const chosenMove = possibleMoves.find((move, index) => move.x === x && move.y === y);
+                    if (chosenMove != undefined) {
+                        // move player
+                        // perform capture
+                        // if reached end king player
+
+                        board[getIndex(x, y)] = board[lastSelectedIndex].replace("h", "");
+                        board[lastSelectedIndex] = "";
+                        possibleMoves = [];
+                        opponentLastMoves = [];
+                        // capture
+                        if (chosenMove.opponentPieceLocation !== null) {
+                            board[getIndex(chosenMove.opponentPieceLocation.x, chosenMove.opponentPieceLocation.y)] = "";
+                        }
+
+                        const prevX = lastSelectedIndex % 10;
+                        const prevY = Math.floor(lastSelectedIndex / 10);
+
+                        if (room != null) sendMove(chosenMove, lastSelectedIndex);
+                        if (!hasChopAvailable(currentPlayer, {x: x, y: y}, {x: x - prevX > 0 ? -1 : 1, y: y - prevY > 0 ? -1 : 1}) || chosenMove.opponentPieceLocation === null) {
+                            if ((currentPlayer == "b" && y == 0) || (currentPlayer == "r" && y == 9)) {
+                                board[getIndex(x, y)] = board[getIndex(x, y)] + "k";
+                            }
+                            isMyTurn = !isMyTurn;
+                            currentPlayer = currentPlayer === "b" ? "r" : "b";
+                            turnText.innerText = `${currentPlayer == "b" ? "Black" : "Red"}'s Turn (${isMyTurn ? "You" : "Opponent"})`;
+                            turnText.style.color = isMyTurn ? "green" : "white";
+                        } 
+                        if (room != null) updateState();
+                        lastSelectedIndex = null;
+                    }
+                    currentState = states.PIECE_PICK;
+
+                }
+                case states.PIECE_PICK: {
+                    // check presides over movement
+                    if (board[index].includes(currentPlayer)) {
+                        console.log("HI");
+                        if (lastSelectedIndex !== null) {
+                            board[lastSelectedIndex] = board[lastSelectedIndex].replace("h", "");
+                            possibleMoves = [];
+                        }
+                        if (index === lastSelectedIndex) {
+                            board[lastSelectedIndex] = board[lastSelectedIndex].replace("h", "");
+                            lastSelectedIndex = null;
+                            possibleMoves = [];           
+                        } else {
+                            board[index] =  board[index].slice(0, 2) + "h";
+                            lastSelectedIndex = index;
+                            
+                            // any checks
+                            // any free moves
+
+                            if (board[index] == "bh") {
+                                if (x - 2 >= 0 && y - 2 >= 0) {
+                                    if (board[getIndex(x-1, y-1)].startsWith("r") && board[getIndex(x-2, y-2)] == "") {
+                                        possibleMoves.push({x: x-2, y: y-2, opponentPieceLocation: {x: x-1, y:y-1}});
+                                        hasCapture = true;
+                                    }
+                                }
+                                if (x + 2 < 10 && y - 2 >= 0) {
+                                    if (board[getIndex(x+1, y-1)].startsWith("r") && board[getIndex(x+2, y-2)] == "") {
+                                        possibleMoves.push({x: x+2, y:y-2, opponentPieceLocation: {x: x+1, y:y-1}});
+                                        hasCapture = true;
+                                    }
+                                }
+                                if (x - 2 >= 0 && y + 2 < 10) {
+                                    if (board[getIndex(x-1, y+1)].startsWith("r") && board[getIndex(x-2, y+2)] == "") {
+                                        possibleMoves.push({x: x-2, y: y+2, opponentPieceLocation: {x: x-1, y: y+1}});
+                                    }
+                                }
+                                if (x + 2 < 10 && y + 2 < 10) {
+                                    if (board[getIndex(x+1, y+1)].startsWith("r") && board[getIndex(x+2, y+2)] == "") {
+                                        possibleMoves.push({x: x+2, y:y+2, opponentPieceLocation: {x: x+1, y: y+1}});
+                                    }
+                                }
+                                if (hasCapture == false) {
+                                    if (x - 1 >= 0 && y - 1 >= 0) {
+                                        if (board[getIndex(x-1, y-1)] === "") {
+                                            possibleMoves.push({x: x-1, y: y-1, opponentPieceLocation: null});
+                                        }
+                                    }
+                                    if (x+1 < 10 && y - 1 >= 0) {
+                                        if (board[getIndex(x+1, y-1)] === "") {
+                                            possibleMoves.push({x: x+1, y: y-1, opponentPieceLocation: null});
+                                        }
+                                    }
+                                }
+                            } else if (board[index] === "rh") {
+                                if (x - 2 >= 0 && y + 2 < 10) {
+                                    if (board[getIndex(x-1, y+1)].startsWith("b") && board[getIndex(x-2, y+2)] == "") {
+                                        possibleMoves.push({x: x-2, y: y+2, opponentPieceLocation: {x: x-1, y: y+1}});
+                                    }
+                                }
+                                if (x + 2 < 10 && y + 2 < 10) {
+                                    if (board[getIndex(x+1, y+1)].startsWith("b") && board[getIndex(x+2, y+2)] == "") {
+                                        possibleMoves.push({x: x+2, y:y+2, opponentPieceLocation: {x: x+1, y: y+1}});
+                                    }
+                                }
+                                if (x - 2 >= 0 && y - 2 >= 0) {
+                                    if (board[getIndex(x-1, y-1)].startsWith("b") && board[getIndex(x-2, y-2)] == "") {
+                                        possibleMoves.push({x: x-2, y: y-2, opponentPieceLocation: {x: x-1, y:y-1}});
+                                        hasCapture = true;
+                                    }
+                                }
+                                if (x + 2 < 10 && y - 2 >= 0) {
+                                    if (board[getIndex(x+1, y-1)].startsWith("b") && board[getIndex(x+2, y-2)] == "") {
+                                        possibleMoves.push({x: x+2, y:y-2, opponentPieceLocation: {x: x+1, y:y-1}});
+                                        hasCapture = true;
+                                    }
+                                }
+                                if (hasCapture == false) {
+                                    if (x - 1 >= 0 && y + 1 >= 0) {
+                                        if (board[getIndex(x-1, y+1)] === "") {
+                                            possibleMoves.push({x: x-1, y: y+1, opponentPieceLocation: null});
+                                        }
+                                    }
+                                    if (x+1 < 10 && y + 1 >= 0) {
+                                        if (board[getIndex(x+1, y+1)] === "") {
+                                            possibleMoves.push({x: x+1, y: y+1, opponentPieceLocation: null});
+                                        }
+                                    }
+                                }
+                            } else if (board[index].endsWith("k")) {
+                                const playerSign = board[index].charAt(0);
+                                let directionalStop = {
+                                    ul: false,
+                                    ur: false,
+                                    dl: false,
+                                    dr: false,
+                                };
+                                if (hasCapture === true) {
+                                    for (let i = 1; i < 10; i++) {
+                                        if (x-i-1 >= 0) {
+                                            if (y-i-1 >= 0) {
+                                                if (board[getIndex(x-i, y-i)].startsWith(playerSign === "b" ? "r" : "b") && board[getIndex(x-i-1, y-i-1)] == "" && !directionalStop.ul) {
+                                                    let originalI = i;
+                                                    while (i < 10 && x - i - 1 >= 0 && y - i - 1 >= 0) {
+                                                        if (board[getIndex(x-i-1, y-i-1)] !== "") {
+                                                            directionalStop.ul = true;
+                                                            break;
+                                                        };
+                                                        possibleMoves.push({x: x - i - 1, y: y - i - 1, opponentPieceLocation: {x: x - originalI, y: y - originalI}});
+                                                        i++;
+                                                    }
+                                                    i = originalI;
+                                                    
+                                                }
+                                            }
+                                            if (y+i+1 < 10) {
+                                                if (board[getIndex(x-i, y+i)].startsWith(playerSign === "b" ? "r" : "b") && board[getIndex(x-i-1, y+i+1)] == "" && !directionalStop.ur) {
+                                                    let originalI = i;
+                                                    while (i < 10 && x - i - 1 >= 0 && y + i + 1 < 10) {
+                                                        if (board[getIndex(x-i-1, y+i+1)] !== "") {
+                                                            directionalStop.ur = true;
+                                                            break;
+                                                        }
+                                                        possibleMoves.push({x: x - i - 1, y: y + i + 1, opponentPieceLocation: {x: x - originalI, y: y + originalI}});
+                                                        i++;
+                                                    }
+                                                    i = originalI;
+                                                }
+                                            }
+                                        }
+                                        if (x+i+1 < 10) {
+                                            if (y-i-1 >= 0) {
+                                                if (board[getIndex(x+i, y-i)].startsWith(playerSign === "b" ? "r" : "b") && board[getIndex(x+i+1, y-i-1)] == "" && !directionalStop.dl) {
+                                                    let originalI = i;
+                                                    while (i < 10 && x + i + 1 < 10 && y - i - 1 >= 0) {
+                                                        if (board[getIndex(x+i+1, y-i-1)] !== "") {
+                                                            directionalStop.dl = true;
+                                                            break;
+                                                        }
+                                                        possibleMoves.push({x: x + i + 1, y: y - i - 1, opponentPieceLocation: {x: x + originalI, y: y - originalI}});
+                                                        i++;
+                                                    }
+                                                    i = originalI;
+                                                }
+                                            }
+                                            if (y+i+1 < 10) {
+                                                if (board[getIndex(x+i, y+i)].startsWith(playerSign === "b" ? "r" : "b") && board[getIndex(x+i+1, y+i+1)] == "" && !directionalStop.dr) {
+                                                    let originalI = i;
+                                                    while (i < 10 && x + i + 1 < 10 && y + i + 1 < 10) {
+                                                        if (board[getIndex(x+i+1, y+i+1)] !== "") {
+                                                            directionalStop.dr = true;
+                                                            break;
+                                                        }
+                                                        possibleMoves.push({x: x + i + 1, y: y + i + 1, opponentPieceLocation: {x: x + originalI, y: y + originalI}});
+                                                        i++;
+                                                    }
+                                                    i = originalI;
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                } else {
+                                    let i = 0;
+                                    while (i < 10 && x - i - 1 >= 0 && y - i - 1 >= 0) {
+                                        if (board[getIndex(x-i-1, y-i-1)] !== "") break;
+                                        possibleMoves.push({x: x - i - 1, y: y - i - 1, opponentPieceLocation: null});
+                                        i++;
+                                    }
+                                    i = 0;
+                                    while (i < 10 && x - i - 1 >= 0 && y + i + 1 < 10) {
+                                        if (board[getIndex(x-i-1, y+i+1)] !== "") break;
+                                        possibleMoves.push({x: x - i - 1, y: y + i + 1, opponentPieceLocation: null});
+                                        i++;
+                                    }
+                                    i = 0;
+                                    while (i < 10 && x + i + 1 < 10 && y - i - 1 >= 0) {
+                                        if (board[getIndex(x+i+1, y-i-1)] !== "") break;
+                                        possibleMoves.push({x: x + i + 1, y: y - i - 1, opponentPieceLocation: null});
+                                        i++;
+                                    }
+                                    i = 0;
+                                    while (i < 10 && x + i + 1 < 10 && y + i + 1 < 10) {
+                                        if (board[getIndex(x+i+1, y+i+1)] !== "") break;
+                                        possibleMoves.push({x: x + i + 1, y: y + i + 1, opponentPieceLocation: null});
+                                        i++;
+                                    }
+                                            
+                                }
+        
+                            }
+                            // currentState = states.MOVE_PICK;
+                        }
+                    } else {
+                        if (lastSelectedIndex !== null) {
+                            board[lastSelectedIndex] = board[lastSelectedIndex].replace("h", "");
+                        }
+                        lastSelectedIndex = null;
+                        possibleMoves = [];
+                    }
+                    drawBoard();
+                    for (let move of possibleMoves) {
+                        drawPossibleMoveCircle(move.x, move.y);
+                    }
+                    break;
+                }
+            }
+        });
+
+        hideFormButton.addEventListener("click", () => {
+            if (form.classList.contains("hidden")) {
+                form.classList.remove("hidden");
+                hideFormButton.innerText = "Hide Form";
+            } else {
+                form.classList.add("hidden");
+                hideFormButton.innerText = "Show Form";
+            }
+        });
+
+
+        function drawPossibleMoveCircle(x, y) {
+            context.beginPath();
+            context.arc(x * (tileWidth) + (tileWidth / 2), (tileHeight) * y + (tileHeight / 2), possibleModeCircleRadius * 0.5, 0, 2 * Math.PI);
+            context.fillStyle = (getIndex(x, y) + y) % 2 === 0 ? "#cccccc55" : "#ccccccff"
+            context.fill();
+            context.closePath();
+        }
+
+        function drawPiece(x, y, type) {
+            context.drawImage(pieceImages[type.slice(0, 2).toLowerCase()], tileWidth * x, tileHeight * y, tileWidth, tileHeight)
+        }
+
+        function drawBoard() {
+            for (let i = 0; i < tileDimension; i++) {
+                for (let j = 0; j < tileDimension; j++) {
+                    const index = getIndex(i, j);
+                    context.beginPath();
+                    if (board[index].includes("h") || opponentLastMoves.filter((move) => move.x === i && move.y === j).length > 0) {
+                        context.fillStyle = "yellow"
+                    } else {
+                        context.fillStyle = (index + j) % 2 === 0 ? "green" : "white"; 
+                    }
+                    context.fillRect(tileWidth * i, tileHeight * j, tileWidth, tileHeight);
+                    context.closePath();
+
+                    if (board[index] !== "") {
+                        drawPiece(i, j, board[index]);
+                    }
+                }
+            }
+        }
+
+        function getIndex(x, y) {
+            return y * tileDimension + x;
+        }
+
+        function sendMove(move, lastSelectedIndex) {
+            ws.send(
+                JSON.stringify({
+                    event: "broadcastroom",
+                    roomCode: room.roomCode,
+                    body: {
+                        event: "move",
+                        move: {
+                            ...move,
+                            lastSelectedIndex
+                        },
+                    },
+                }),
+            );
+        }
+
+        function updateState() {
+            ws.send(
+                JSON.stringify({
+                    event: "updatestate",
+                    roomCode: room.roomCode,
+                    gameState: {
+                        board: board,
+                        currentPlayer: currentPlayer,
+                        isWon: isWon,
+                    },
+                    isTurn: isMyTurn,
+                })
+            )
+        }
+        function leaveRoom() {
+            if (room == null) return;
+                ws.send(
+                JSON.stringify({
+                    event: "broadcastroom",
+                    roomCode: room.roomCode,
+                    body: {
+                        event: "leaving",
+                    },
+                }),
+            );
+            ws.send(
+                JSON.stringify(
+                    {
+                        event: "leaveroom",
+                    }
+                )
+            )
+            isWon = false;
+            room = null;
+            isConnectedText.innerText = "Not Connected";
+            isConnectedText.className = "red";
+            faceOffText.innerText = "You (white) vs (black) Local";
+            turnText.innerText = "White's turn (You)"
+            turnText.className = "green";
+            currentPlayer = "W";
+            isMyTurn = true;
+            board = createDefaultBoard();
+            drawBoard();
+        }
+
+        function connectToRoom(roomCode, displayName) {
+            room = null;
+            isWon = false;
+
+            fetch(`/numberinroom/${roomCode}`).then(async (res) => {
+                const jsonData = await res.json();
+                if (jsonData["event"] === "givenumberinroom") {
+                    ws.send(
+                        JSON.stringify({
+                            event: "roomconnect",
+                            roomCode: roomCode,
+                            displayName: displayName,
+                            gameName: "checkers",
+                        }),
+                    );
+                } else {
+                    ws.send(
+                        JSON.stringify({
+                            event: "roomconnect",
+                            roomCode: roomCode,
+                            displayName: displayName,
+                            gameName: "checkers",
+                            initialState: {
+                                board: createDefaultBoard(),
+                                currentPlayer: "B",
+                                isWon: false,
+                            },
+                        }),
+                    );
+                }
+            });
+        }
+
+        function restartGame() {
+            if (!isRoomLeader && room != null) return;
+            isWon = false;
+            turnText.innerText = "White's turn (You)"
+            turnText.style.color = "green";
+            currentPlayer = "W";
+            isMyTurn = isRoomLeader || (room == null);
+            board = createDefaultBoard();
+            opponentLastMoves = []
+
+            if (room != null) {
+                updateState();
+                ws.send(JSON.stringify({
+                    event: "broadcastroom",
+                    roomCode: room.roomCode,
+                    body: {
+                        event: "restart",
+                    }
+                }))
+            }
+
+            drawBoard();
+        }
+
+        restartButton.addEventListener("click", () => {
+            restartGame();
+        })
+        
+        ws.addEventListener("open", () => {
+            console.log("Connected to websocket");
+            ws.addEventListener("message", (e) => {
+                const data = JSON.parse(e.data);
+                if (data["event"] == "roomconnected") {
+                    console.log(
+                        `Connected to room with room code ${data["roomCode"]}`,
+                    );
+                    board = data["gameState"].board;
+                    room = {
+                        roomCode: data["roomCode"],
+                        numberOfPlayers: data["numberOfPlayers"],
+                    };
+
+                    currentPlayer = data["gameState"].currentPlayer;
+                    isRoomLeader = data["isRoomLeader"];
+                    isMyTurn = data["isTurn"];
+                    isConnectedText.innerText = "Connected";
+                    isConnectedText.className = "green";
+                    const mySign = isMyTurn ? currentPlayer : (currentPlayer === "W" ? "B" : "W");
+                    faceOffText.innerText = `You (${mySign == "W" ? "white" : "black"}) vs (${mySign == "W" ? "black" : "white"}) ${data["opponentName"]}`;
+                    turnText.innerText = `${currentPlayer == "W" ? "White" : "Black"}'s Turn (${isMyTurn ? "You" : "Opponent"})`;
+                    turnText.style.color = isMyTurn ? "green" : "white";
+                    ws.send(JSON.stringify({
+                        event: "broadcastroom",
+                        roomCode: room.roomCode,
+                        body: {
+                            event: "justjoined",
+                            displayName: localStorage.getItem("displayName"),
+                        }
+                    }))
+
+                    drawBoard();
+                } else if (data["event"] == "roomnotconnected") {
+                    alert(
+                        `Could not connect because ${data["reason"]}`,
+                    );
+                } else if (data["event"] == "move") {
+                    const chosenMove = data["move"];
+                    lastSelectedIndex = chosenMove.lastSelectedIndex;
+                    opponentLastMoves = [
+                        {x: chosenMove.x, y: chosenMove.y},
+                        {x: lastSelectedIndex % 10, y: Math.floor(lastSelectedIndex / 10)}
+                    ]
+                    // move player
+                    // perform capture
+                    // if reached end king player
+
+                    board[getIndex(chosenMove.x, chosenMove.y)] = board[lastSelectedIndex].replace("h", "");
+                    board[lastSelectedIndex] = "";
+                    possibleMoves = [];
+
+                    // capture
+                    if (chosenMove.opponentPieceLocation !== null) {
+                        board[getIndex(chosenMove.opponentPieceLocation.x, chosenMove.opponentPieceLocation.y)] = "";
+                    }
+
+                    const prevX = lastSelectedIndex % 10;
+                    const prevY = Math.floor(lastSelectedIndex / 10);
+
+                    if (!hasChopAvailable(currentPlayer, {x: chosenMove.x, y: chosenMove.y}, {x: chosenMove.x - prevX > 0 ? -1 : 1, y: chosenMove.y - prevY > 0 ? -1 : 1}) || chosenMove.opponentPieceLocation === null) {
+                        if ((currentPlayer == "B" && chosenMove.y == 0) || (currentPlayer == "r" && chosenMove.y == 9)) {
+                            board[getIndex(chosenMove.x, chosenMove.y)] = board[getIndex(chosenMove.x, chosenMove.y)] + "k";
+                        }
+                        currentPlayer = currentPlayer === "W" ? "B" : "W";
+                        isMyTurn = !isMyTurn;
+                        turnText.innerText = `${currentPlayer == "W" ? "White" : "Black"}'s Turn (${isMyTurn ? "You" : "Opponent"})`;
+                        turnText.style.color = isMyTurn ? "green" : "white";
+                    } 
+                    lastSelectedIndex = null;
+                    currentState = states.PIECE_PICK;
+                    drawBoard();
+
+                } else if (data["event"] == "justjoined") {
+                    // update the versus text
+                    const mySign = isMyTurn ? currentPlayer : (currentPlayer === "W" ? "B" : "W");
+                    faceOffText.innerText = `You (${mySign == "W" ? "white" : "black"}) vs (${mySign == "W" ? "black" : "white"}) ${data["displayName"]}`;
+                } else if (data["event"] == "leaving") {
+                    const mySign = isMyTurn ? currentPlayer : (currentPlayer === "W" ? "B" : "W");
+                    faceOffText.innerText = `You (${mySign == "W" ? "white" : "black"}) vs (${mySign == "W" ? "black" : "white"}) Nobody`;
+                } else if (data["event"] == "restart") {
+                    isWon = false;
+                    turnText.innerText = "White's turn (Opponent)"
+                    turnText.style.color = "white";
+                    currentPlayer = "W";
+                    isMyTurn = isRoomLeader || (room == null);
+                    board = createDefaultBoard();
+                    opponentLastMoves = [];
+                    drawBoard();
+                } else if (data["event"] == "leader") {
+                    isRoomLeader = true;
+                }
+
+            });
+        });
+
+        board[getIndex(2, 3)] = "qW";
+        piecePositions = getPiecePositions(board);
+        possibleMoves = getPossibleMoves(2, 3);
+        drawBoard();
+        for (let move of possibleMoves) {
+            drawPossibleMoveCircle(move.x, move.y)
+        }
+
+    });
+   </script>
+</body>
+
+</html>
+
+<!-- 
+    Checkers.start_playing()
+    if player.isHungry():
+        checkers.alert("Go and eat")
+    else:
+        checkers.alert("Go and prepare food so you will eat when you are hungry")
+
+    checkers.turnOfThePC()
+-

@@ -684,6 +684,7 @@
         currentPlayer = "b";
         isMyTurn = isRoomLeader || (room == null);
         board = createDefaultBoard();
+        opponentLastMoves = []
 
         if (room != null) {
             updateState();
@@ -790,8 +791,11 @@
                 currentPlayer = "b";
                 isMyTurn = isRoomLeader || (room == null);
                 board = createDefaultBoard();
+                opponentLastMoves = [];
 
                 drawBoard();
+            } else if (data["event"] == "leader") {
+                isRoomLeader = true;
             }
 
         });
