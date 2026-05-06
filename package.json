@@ -21,6 +21,7 @@
   "dependencies": {
     "ejs": "^5.0.2",
     "express": "^5.2.1",
+    "https": "^1.0.0",
     "ws": "^8.20.0"
   },
   "devDependencies": {

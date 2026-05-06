@@ -1,9 +1,13 @@
 const express = require("express");
-const http = require("http");
+const https = require("https");
+const fs = require("fs");
 const websocket = require("ws");
 const app = express();
 
-const server = http.createServer(app);
+const server = https.createServer({
+    key: fs.readFileSync("./cert/hackade.net+5-key.pem"),
+    cert: fs.readFileSync("./cert/hackade.net+5.pem"),
+}, app);
 const wss = new websocket.Server({ server });
 
 let games = {
@@ -219,6 +223,10 @@ app.get("/", (req, res) => {
     res.render("home", { title: "Home", games: games });
 });
 
+app.get("/how2play", (req, res) => {
+    res.render("how2play", { title: "How To Play"});
+})
+
 app.get("/numberinroom/:roomCode", (req, res) => {
     if (rooms[req.params.roomCode] == null) {
         res.json({
@@ -235,5 +243,9 @@ app.get("/numberinroom/:roomCode", (req, res) => {
 
 const gamesRouter = require("./routes/games");
 app.use("/games", gamesRouter);
+
+app.use((req, res) => {
+    res.send("<h1>Naa bro I ain't seen that shii</h1>")
+})
 
 server.listen(3000, "0.0.0.0");

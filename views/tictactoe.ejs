@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
-    <%- include("./partials/head.ejs") %>
+    <head>
+        <%- include("./partials/head.ejs") %>
+    </head>
     <body>
         <header><%- include("./partials/navbar.ejs") %></header>
         <main>
@@ -23,7 +25,7 @@
        </main>
         <script>
             // definition of variables
-            const ws = new WebSocket(`ws://${window.location.host}`);
+            const ws = new WebSocket(`wss://${window.location.host}`);
 
             const form = document.querySelector(".room-form");
             const roomCodeInput = document.getElementById("roomCode");
@@ -119,6 +121,7 @@
                     navbarActions.className = "navbar-actions"
                 }
             }
+            
             mediaQuery.addEventListener("change", handleMediaChange);
 
             // connect to room on submit and save values

@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
-<%- include("./partials/head.ejs") %>
+<head>
+    <%- include("./partials/head.ejs") %>
+</head>
 <body>
     <header><%- include("./partials/navbar.ejs") %></header>
     <main>
@@ -43,7 +45,7 @@
     }
 
     // load chesspieces first
-    loadImages(pieces.map((name) => `/pieces/${name}.svg`)).then(images => {
+    loadImages(pieces.map((name) => `/images/pieces/${name}.svg`)).then(images => {
         const pieceImages = images.reduce((acc, currentValue, index) => {
             acc[pieces[index]] = currentValue;
             return acc;
@@ -67,8 +69,8 @@
         const turnText = document.getElementById("turnText");
         const leaveButton = document.getElementById("leaveButton");
 
-        let hasCastledKingside = false;
-        let hasCastledQueenside = false;
+        let canCastleKingside = true;
+        let canCastleQueenside = true;
 
         function getPiecePositions(board) {
             let piecePositions = {
@@ -91,7 +93,9 @@
         function getPossibleMoves(x, y) {
             const index = getIndex(x, y);
             const piece = board[index];
+            if (piece === "") return [];
             const type = board[index].charAt(0);
+            const side = board[index].charAt(1);
 
             let possibleMoves = [];
 
@@ -107,7 +111,7 @@
                     }
                     if (y - 2 >= 0) {
                         if (x - 1 >= 0) possibleMoves.push({y: y-2, x: x-1});
-                        if (x + 1 < tiledimension) possiblemoves.push({y: y-2, x: x+1});
+                        if (x + 1 < tileDimension) possiblemoves.push({y: y-2, x: x+1});
                     }
                     if (y + 2 < tileDimension) {
                         if (x - 1 >= 0) possibleMoves.push({y: y+2, x: x-1});
@@ -117,111 +121,148 @@
                 }
                 case "b": {
                     for (let i = 1; i < tileDimension && x - i >= 0 && y - i >= 0; i++) {
-                        if (board[getIndex(x-i, y-i)] !== "") break;
+                        if (board[getIndex(x-i, y-i)].includes(side)) break;
                         possibleMoves.push({x: x - i, y: y - i, opponentPieceLocation: null});
+                        if (board[getIndex(x-i, y-i)] !== "") break;
                     }
                     for (let i = 1; i < tileDimension && x - i >= 0 && y + i < tileDimension; i++) {
-                        if (board[getIndex(x-i, y+i)] !== "") break;
+                        if (board[getIndex(x-i, y+i)].includes(side)) break;
                         possibleMoves.push({x: x - i, y: y + i, opponentPieceLocation: null});
+                        if (board[getIndex(x-i, y+i)] !== "") break;
                     }
-                    for (let i = 1; i < tileDimension && x + i < 10 && y - i >= 0; i++) {
-                        if (board[getIndex(x+i, y-i)] !== "") break;
+                    for (let i = 1; i < tileDimension && x + i < tileDimension && y - i >= 0; i++) {
+                        if (board[getIndex(x+i, y-i)].includes(side)) break;
                         possibleMoves.push({x: x + i, y: y - i, opponentPieceLocation: null});
+                        if (board[getIndex(x+i, y-i)] !== "") break;
                     }
-                    for (let i = 1; i < tileDimension && x + i < 10 && y + i < tileDimension; i++) {
-                        if (board[getIndex(x+i, y+i)] !== "") break;
+                    for (let i = 1; i < tileDimension && x + i < tileDimension && y + i < tileDimension; i++) {
+                        if (board[getIndex(x+i, y+i)].includes(side)) break;
                         possibleMoves.push({x: x + i, y: y + i, opponentPieceLocation: null});
+                        if (board[getIndex(x+i, y+i)] !== "") break;
                     } 
                     break;
                 }
                 case "r": {
                     for (let i = 1; i < tileDimension && x - i >= 0; i++) {
-                        if (board[getIndex(x - i, y)] !== "") break;
+                        if (board[getIndex(x-i, y)].includes(side)) break;
                         possibleMoves.push({x: x - i, y: y});
+                        if (board[getIndex(x - i, y)] !== "") break;
                     }
-                    for (let i = 1; i < tileDimension && x + i < 10; i++) {
-                        if (board[getIndex(x + i, y)] !== "") break;
+                    for (let i = 1; i < tileDimension && x + i < tileDimension; i++) {
+                        if (board[getIndex(x+i, y)].includes(side)) break;
                         possibleMoves.push({x: x + i, y: y});
+                        if (board[getIndex(x + i, y)] !== "") break;
                     }
                     for (let i = 1; i < tileDimension && y - i >= 0; i++) {
-                        if (board[getIndex(x, y - i)] !== "") break;
+                        if (board[getIndex(x, y - i)].includes(side)) break;
                         possibleMoves.push({x: x, y: y - i});
+                        if (board[getIndex(x, y - i)] !== "") break;
                     }
-                    for (let i = 1; i < tileDimension && y + i < 10; i++) {
-                        if (board[getIndex(x, y + i)] !== "") break;
+                    for (let i = 1; i < tileDimension && y + i < tileDimension; i++) {
+                        if (board[getIndex(x, y + i)].includes(side)) break;
                         possibleMoves.push({x: x, y: y + i});
+                        if (board[getIndex(x, y + i)] !== "") break;
                     }
                     break;
                 }
                 case "q": {
                     for (let i = 1; i < tileDimension && x - i >= 0 && y - i >= 0; i++) {
-                        if (board[getIndex(x-i, y-i)] !== "") break;
+                        if (board[getIndex(x-i, y-i)].includes(side)) break;
                         possibleMoves.push({x: x - i, y: y - i, opponentPieceLocation: null});
+                        if (board[getIndex(x-i, y-i)] !== "") break;
                     }
                     for (let i = 1; i < tileDimension && x - i >= 0 && y + i < tileDimension; i++) {
-                        if (board[getIndex(x-i, y+i)] !== "") break;
+                        if (board[getIndex(x-i, y+i)].includes(side)) break;
                         possibleMoves.push({x: x - i, y: y + i, opponentPieceLocation: null});
+                        if (board[getIndex(x-i, y+i)] !== "") break;
                     }
-                    for (let i = 1; i < tileDimension && x + i < 10 && y - i >= 0; i++) {
-                        if (board[getIndex(x+i, y-i)] !== "") break;
+                    for (let i = 1; i < tileDimension && x + i < tileDimension && y - i >= 0; i++) {
+                        if (board[getIndex(x+i, y-i)].includes(side)) break;
                         possibleMoves.push({x: x + i, y: y - i, opponentPieceLocation: null});
+                        if (board[getIndex(x+i, y-i)] !== "") break;
                     }
-                    for (let i = 1; i < tileDimension && x + i < 10 && y + i < tileDimension; i++) {
-                        if (board[getIndex(x+i, y+i)] !== "") break;
+                    for (let i = 1; i < tileDimension && x + i < tileDimension && y + i < tileDimension; i++) {
+                        if (board[getIndex(x+i, y+i)].includes(side)) break;
                         possibleMoves.push({x: x + i, y: y + i, opponentPieceLocation: null});
+                        if (board[getIndex(x+i, y+i)] !== "") break;
                     } 
                     for (let i = 1; i < tileDimension && x - i >= 0; i++) {
-                        if (board[getIndex(x - i, y)] !== "") break;
+                        if (board[getIndex(x-i, y)].includes(side)) break;
                         possibleMoves.push({x: x - i, y: y});
+                        if (board[getIndex(x - i, y)] !== "") break;
                     }
-                    for (let i = 1; i < tileDimension && x + i < 10; i++) {
-                        if (board[getIndex(x + i, y)] !== "") break;
+                    for (let i = 1; i < tileDimension && x + i < tileDimension; i++) {
+                        if (board[getIndex(x+i, y)].includes(side)) break;
                         possibleMoves.push({x: x + i, y: y});
+                        if (board[getIndex(x + i, y)] !== "") break;
                     }
                     for (let i = 1; i < tileDimension && y - i >= 0; i++) {
-                        if (board[getIndex(x, y - i)] !== "") break;
+                        if (board[getIndex(x, y - i)].includes(side)) break;
                         possibleMoves.push({x: x, y: y - i});
+                        if (board[getIndex(x, y - i)] !== "") break;
                     }
-                    for (let i = 1; i < tileDimension && y + i < 10; i++) {
-                        if (board[getIndex(x, y + i)] !== "") break;
+                    for (let i = 1; i < tileDimension && y + i < tileDimension; i++) {
+                        if (board[getIndex(x, y + i)].includes(side)) break;
                         possibleMoves.push({x: x, y: y + i});
+                        if (board[getIndex(x, y + i)] !== "") break;
                     }
                     break;
                 }
                 case "k": {
-                    for (let i = 1; i < tileDimension && x - i >= 0 && y - i >= 0; i++) {
-                        if (board[getIndex(x-i, y-i)] !== "") break;
-                        possibleMoves.push({x: x - i, y: y - i, opponentPieceLocation: null});
+                    if (x - 1 >= 0 && y - 1 >= 0 && !(board[getIndex(x-1, y-1)].includes(side))) {
+                        possibleMoves.push({x: x - 1, y: y - 1, opponentPieceLocation: null});
                     }
-                    for (let i = 1; i < tileDimension && x - i >= 0 && y + i < tileDimension; i++) {
-                        if (board[getIndex(x-i, y+i)] !== "") break;
-                        possibleMoves.push({x: x - i, y: y + i, opponentPieceLocation: null});
+                    if (x - 1 >= 0 && y + 1 < tileDimension && !(board[getIndex(x-1, y+1)].includes(side))) {
+                        possibleMoves.push({x: x - 1, y: y + 1, opponentPieceLocation: null});
                     }
-                    for (let i = 1; i < tileDimension && x + i < 10 && y - i >= 0; i++) {
-                        if (board[getIndex(x+i, y-i)] !== "") break;
-                        possibleMoves.push({x: x + i, y: y - i, opponentPieceLocation: null});
+                    if (x + 1 < tileDimension && y - 1 >= 0 && !(board[getIndex(x+1, y-1)].includes(side))) {
+                        possibleMoves.push({x: x + 1, y: y - 1, opponentPieceLocation: null});
                     }
-                    for (let i = 1; i < tileDimension && x + i < 10 && y + i < tileDimension; i++) {
-                        if (board[getIndex(x+i, y+i)] !== "") break;
-                        possibleMoves.push({x: x + i, y: y + i, opponentPieceLocation: null});
+                    if (x + 1 < tileDimension && y + 1 < tileDimension && !(board[getIndex(x+1, y+1)].includes(side))) {
+                        possibleMoves.push({x: x + 1, y: y + 1, opponentPieceLocation: null});
                     } 
-                    for (let i = 1; i < tileDimension && x - i >= 0; i++) {
-                        if (board[getIndex(x - i, y)] !== "") break;
-                        possibleMoves.push({x: x - i, y: y});
+                    if (x - 1 >= 0 && !(board[getIndex(x-1, y)].includes(side))) {
+                        possibleMoves.push({x: x - 1, y: y});
                     }
-                    for (let i = 1; i < tileDimension && x + i < 10; i++) {
-                        if (board[getIndex(x + i, y)] !== "") break;
-                        possibleMoves.push({x: x + i, y: y});
+                    if (x + 1 < tileDimension && !(board[getIndex(x+1, y)].includes(side))) {
+                        possibleMoves.push({x: x + 1, y: y});
                     }
-                    for (let i = 1; i < tileDimension && y - i >= 0; i++) {
-                        if (board[getIndex(x, y - i)] !== "") break;
-                        possibleMoves.push({x: x, y: y - i});
+                    if (y - 1 >= 0 && !(board[getIndex(x, y - 1)].includes(side))) {
+                        possibleMoves.push({x: x, y: y - 1});
                     }
-                    for (let i = 1; i < tileDimension && y + i < 10; i++) {
-                        if (board[getIndex(x, y + i)] !== "") break;
-                        possibleMoves.push({x: x, y: y + i});
+                    if (y + 1 < tileDimension && !(board[getIndex(x, y + 1)].includes(side))) {
+                        possibleMoves.push({x: x, y: y + 1});
                     }
                     break;
+                }
+                case "p": {
+                    if (side === "W") {
+                        if (y === 6) {
+                            possibleMoves.push({x: x, y: y - 2});
+                        }
+                        if (y - 1 >= 0) {
+                            possibleMoves.push({x: x, y: y - 1});
+                            if (board[getIndex(x + 1, y - 1)] !== "" && !board[getIndex(x + 1, y - 1)].includes(side)) {
+                                possibleMoves.push({x: x + 1, y: y - 1});
+                            }
+                            if (board[getIndex(x - 1, y - 1)] !== "" && !board[getIndex(x + 1, y - 1)].includes(side)) {
+                                possibleMoves.push({x: x + 1, y: y - 1});
+                            }
+                        }
+                    } else if (side === "B") {
+                        if (y === 1) {
+                            possibleMoves.push({x: x, y: y + 2});
+                        }
+                        if (y + 1 < tileDimension) {
+                            possibleMoves.push({x: x, y: y + 1});
+                            if (board[getIndex(x + 1, y + 1)] !== "" && !board[getIndex(x + 1, y + 1)].includes(side)) {
+                                possibleMoves.push({x: x + 1, y: y + 1});
+                            }
+                            if (board[getIndex(x - 1, y + 1)] !== "" && !board[getIndex(x + 1, y + 1)].includes(side)) {
+                                possibleMoves.push({x: x + 1, y: y + 1});
+                            }
+                        }
+                    }
                 }
             }
             return possibleMoves;
@@ -365,8 +406,8 @@
                             board[getIndex(chosenMove.opponentPieceLocation.x, chosenMove.opponentPieceLocation.y)] = "";
                         }
 
-                        const prevX = lastSelectedIndex % 10;
-                        const prevY = Math.floor(lastSelectedIndex / 10);
+                        const prevX = lastSelectedIndex % tileDimension;
+                        const prevY = Math.floor(lastSelectedIndex / tileDimension);
 
                         if (room != null) sendMove(chosenMove, lastSelectedIndex);
                         if (!hasChopAvailable(currentPlayer, {x: x, y: y}, {x: x - prevX > 0 ? -1 : 1, y: y - prevY > 0 ? -1 : 1}) || chosenMove.opponentPieceLocation === null) {
@@ -410,18 +451,18 @@
                                         hasCapture = true;
                                     }
                                 }
-                                if (x + 2 < 10 && y - 2 >= 0) {
+                                if (x + 2 < tileDimension && y - 2 >= 0) {
                                     if (board[getIndex(x+1, y-1)].startsWith("r") && board[getIndex(x+2, y-2)] == "") {
                                         possibleMoves.push({x: x+2, y:y-2, opponentPieceLocation: {x: x+1, y:y-1}});
                                         hasCapture = true;
                                     }
                                 }
-                                if (x - 2 >= 0 && y + 2 < 10) {
+                                if (x - 2 >= 0 && y + 2 < tileDimension) {
                                     if (board[getIndex(x-1, y+1)].startsWith("r") && board[getIndex(x-2, y+2)] == "") {
                                         possibleMoves.push({x: x-2, y: y+2, opponentPieceLocation: {x: x-1, y: y+1}});
                                     }
                                 }
-                                if (x + 2 < 10 && y + 2 < 10) {
+                                if (x + 2 < tileDimension && y + 2 < tileDimension) {
                                     if (board[getIndex(x+1, y+1)].startsWith("r") && board[getIndex(x+2, y+2)] == "") {
                                         possibleMoves.push({x: x+2, y:y+2, opponentPieceLocation: {x: x+1, y: y+1}});
                                     }
@@ -432,19 +473,19 @@
                                             possibleMoves.push({x: x-1, y: y-1, opponentPieceLocation: null});
                                         }
                                     }
-                                    if (x+1 < 10 && y - 1 >= 0) {
+                                    if (x+1 < tileDimension && y - 1 >= 0) {
                                         if (board[getIndex(x+1, y-1)] === "") {
                                             possibleMoves.push({x: x+1, y: y-1, opponentPieceLocation: null});
                                         }
                                     }
                                 }
                             } else if (board[index] === "rh") {
-                                if (x - 2 >= 0 && y + 2 < 10) {
+                                if (x - 2 >= 0 && y + 2 < tileDimension) {
                                     if (board[getIndex(x-1, y+1)].startsWith("b") && board[getIndex(x-2, y+2)] == "") {
                                         possibleMoves.push({x: x-2, y: y+2, opponentPieceLocation: {x: x-1, y: y+1}});
                                     }
                                 }
-                                if (x + 2 < 10 && y + 2 < 10) {
+                                if (x + 2 < tileDimension && y + 2 < tileDimension) {
                                     if (board[getIndex(x+1, y+1)].startsWith("b") && board[getIndex(x+2, y+2)] == "") {
                                         possibleMoves.push({x: x+2, y:y+2, opponentPieceLocation: {x: x+1, y: y+1}});
                                     }
@@ -455,7 +496,7 @@
                                         hasCapture = true;
                                     }
                                 }
-                                if (x + 2 < 10 && y - 2 >= 0) {
+                                if (x + 2 < tileDimension && y - 2 >= 0) {
                                     if (board[getIndex(x+1, y-1)].startsWith("b") && board[getIndex(x+2, y-2)] == "") {
                                         possibleMoves.push({x: x+2, y:y-2, opponentPieceLocation: {x: x+1, y:y-1}});
                                         hasCapture = true;
@@ -467,7 +508,7 @@
                                             possibleMoves.push({x: x-1, y: y+1, opponentPieceLocation: null});
                                         }
                                     }
-                                    if (x+1 < 10 && y + 1 >= 0) {
+                                    if (x+1 < tileDimension && y + 1 >= 0) {
                                         if (board[getIndex(x+1, y+1)] === "") {
                                             possibleMoves.push({x: x+1, y: y+1, opponentPieceLocation: null});
                                         }
@@ -482,12 +523,12 @@
                                     dr: false,
                                 };
                                 if (hasCapture === true) {
-                                    for (let i = 1; i < 10; i++) {
+                                    for (let i = 1; i < tileDimension; i++) {
                                         if (x-i-1 >= 0) {
                                             if (y-i-1 >= 0) {
                                                 if (board[getIndex(x-i, y-i)].startsWith(playerSign === "b" ? "r" : "b") && board[getIndex(x-i-1, y-i-1)] == "" && !directionalStop.ul) {
                                                     let originalI = i;
-                                                    while (i < 10 && x - i - 1 >= 0 && y - i - 1 >= 0) {
+                                                    while (i < tileDimension && x - i - 1 >= 0 && y - i - 1 >= 0) {
                                                         if (board[getIndex(x-i-1, y-i-1)] !== "") {
                                                             directionalStop.ul = true;
                                                             break;
@@ -499,7 +540,7 @@
                                                     
                                                 }
                                             }
-                                            if (y+i+1 < 10) {
+                                            if (y+i+1 < tileDimension) {
                                                 if (board[getIndex(x-i, y+i)].startsWith(playerSign === "b" ? "r" : "b") && board[getIndex(x-i-1, y+i+1)] == "" && !directionalStop.ur) {
                                                     let originalI = i;
                                                     while (i < 10 && x - i - 1 >= 0 && y + i + 1 < 10) {
@@ -605,11 +646,23 @@
 
 
         function drawPossibleMoveCircle(x, y) {
-            context.beginPath();
-            context.arc(x * (tileWidth) + (tileWidth / 2), (tileHeight) * y + (tileHeight / 2), possibleModeCircleRadius * 0.5, 0, 2 * Math.PI);
-            context.fillStyle = (getIndex(x, y) + y) % 2 === 0 ? "#cccccc55" : "#ccccccff"
-            context.fill();
-            context.closePath();
+            if (board[getIndex(x, y)] === "") {
+                context.beginPath();
+                context.arc(x * (tileWidth) + (tileWidth / 2), (tileHeight) * y + (tileHeight / 2), possibleModeCircleRadius * 0.5, 0, 2 * Math.PI);
+                context.fillStyle = (getIndex(x, y) + y) % 2 === 0 ? "#cccccc66" : "#ccccccff";
+                context.fill();
+                context.closePath();
+            } else {
+                context.beginPath();
+                const prevLineWidth = context.lineWidth;
+                context.lineWidth = 4;
+                context.arc(x * (tileWidth) + (tileWidth / 2), (tileHeight) * y + (tileHeight / 2), (tileWidth / 2), 0, 2 * Math.PI);
+                // context.strokeStyle = (getIndex(x, y) + y) % 2 === 0 ? "#cccccc66" : "#ccccccff";
+                context.strokeStyle = "#c0173988";
+                context.stroke();
+                context.lineWidth = prevLineWidth;
+                context.closePath();
+            }
         }
 
         function drawPiece(x, y, type) {
@@ -858,9 +911,10 @@
             });
         });
 
-        board[getIndex(2, 3)] = "qW";
+        board[getIndex(4, 1)] = "pB";
+        board[getIndex(5, 2)] = "pW";
         piecePositions = getPiecePositions(board);
-        possibleMoves = getPossibleMoves(2, 3);
+        possibleMoves = getPossibleMoves(4, 1);
         drawBoard();
         for (let move of possibleMoves) {
             drawPossibleMoveCircle(move.x, move.y)

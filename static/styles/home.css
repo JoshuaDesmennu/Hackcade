@@ -1,0 +1,81 @@
+main {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    justify-content: center;
+}
+
+main > * {
+    width: 100%;
+}
+
+.game-grid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+    grid-template-rows: repeat(auto-fill, 400px);
+    justify-items: center;    
+    gap: 30px;
+}
+
+.game-card {
+    width: 380px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    height: 380px;
+    background-color: #c21fe2;
+    padding: 0px;
+    position: relative;
+    transition: background-color 200ms, padding 200ms;
+}
+
+.game-card:hover {
+    padding: 10px;
+    background-color: #a000c0;
+}
+
+.game-card > img {
+    width: 90%;
+    height: 90%;
+}
+
+.game-card-textbox {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    z-index: 1;
+    transition: background 200ms;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.game-card-textbox > span {
+    font-size: 2.5em;
+    font-weight: bold;
+    opacity: 0;
+    transition: opacity 200ms;
+}
+
+.game-card-textbox:hover {
+    background: radial-gradient(rgba(44, 44, 44, 0.524), rgba(44, 44, 44, 0.521), transparent);
+}
+
+.game-card-textbox:hover > span {
+    opacity: 1;
+}
+
+.game-grid-title {
+    font-size: 2rem;
+    padding-bottom: 30px;
+}
+
+/* @media screen and (max-width: 840px){
+    .game-grid {
+        grid-template-columns: auto;
+    }
+    
+} */
