@@ -49,6 +49,8 @@
             let isRoomLeader = false;
             let isNavbarToggled = false;
 
+            let opponentNames = [];
+
             // fill the form with the last values entered
             if (lastCode != null) roomCodeInput.value = lastCode;
             if (lastName != null) displayNameInput.value = lastName;
@@ -88,6 +90,7 @@
 
             let currentPlayer = "x";
             let isWon = false;
+
 
             // toggle navbar dropdown on or off
             showNavbarActions.addEventListener("click", () => {
@@ -421,7 +424,7 @@
 
             function leaveRoom() {
                 if (room == null) return;
-                 ws.send(
+                ws.send(
                     JSON.stringify({
                         event: "broadcastroom",
                         roomCode: room.roomCode,
@@ -442,8 +445,8 @@
                 isConnectedText.innerText = "Not Connected";
                 isConnectedText.className = "red";
                 faceOffText.innerText = "You (x) vs (o) Local";
-                turnText.innerText = "X's turn (You)"
-                turnText.className = "green";
+                turnText.innerText = "X's Turn (You)"
+                turnText.style.color = "green";
                 currentPlayer = "x";
                 isMyTurn = true;
                 board = Array(9).fill("");
@@ -487,11 +490,18 @@
             function restartGame() {
                 if (!isRoomLeader && room != null) return;
                 isWon = false;
-                turnText.innerText = "X's turn (You)"
+                const mySign = isMyTurn ? currentPlayer : (currentPlayer == "x" ? "o" : "x");
+                turnText.innerText = `${mySign.toUpperCase()}'s Turn (You)`;
+
                 turnText.style.color = "green";
-                currentPlayer = "x";
+                if (room != null) {
+                    faceOffText.innerText = `You (${mySign}) vs (${mySign == "x" ? "o" : "x"}) ${opponentNames[0] == null ? "Nobody" : opponentNames[0]}`;
+                } else {
+                    faceOffText.innerText = "You (x) vs (o) Local"
+                }
                 isMyTurn = isRoomLeader || (room == null);
                 board = Array(9).fill("");
+                currentPlayer = mySign;
 
                 if (room != null) {
                     updateState();
@@ -502,8 +512,8 @@
                             event: "restart",
                         }
                     }))
-                }
-
+                           let boardPadding = 20 * (canvas.width / 720);
+}
                 drawBoard();
             }
 
@@ -532,7 +542,8 @@
                         isConnectedText.innerText = "Connected";
                         isConnectedText.className = "green";
                         const mySign = isMyTurn ? currentPlayer : (currentPlayer === "x" ? "o" : "x");
-                        faceOffText.innerText = `You (${mySign}) vs (${mySign == "x" ? "o" : "x"}) ${data["opponentName"]}`;
+                        opponentNames = data["opponentNames"]
+                        faceOffText.innerText = `You (${mySign}) vs (${mySign == "x" ? "o" : "x"}) ${opponentNames[0] == null ? "Nobody" : opponentNames[0]}`; 
                         turnText.innerText = `${currentPlayer.toUpperCase()}'s Turn (${isMyTurn ? "You" : "Opponent"})`;
                         turnText.style.color = isMyTurn ? "green" : "white";
                         ws.send(JSON.stringify({
@@ -543,7 +554,17 @@
                                 displayName: localStorage.getItem("displayName"),
                             }
                         }))
+                        const result = checkGameWon(currentPlayer == "x" ? "o" : "x");
                         drawBoard();
+
+                        // if local player has won game, broadcast the fact
+                        if (result.isWon === true) {
+                            drawWinningLine(result.type);
+                            isWon = true;
+
+                            turnText.innerText = `${(currentPlayer == "x" ? "o" : "x").toUpperCase()} Wins (${isMyTurn ? "Opponent" : "You"})`;
+                            turnText.style.color = isMyTurn ? "white" : "gold";
+                        }
                     } else if (data["event"] == "roomnotconnected") {
                         alert(
                             `Could not connect because ${data["reason"]}`,
@@ -551,7 +572,8 @@
 
                     } else if (data["event"] == "move") {
                         if (isWon) return;
-                        const index = data["position"]; const x = index % 3;
+                        const index = data["position"]; 
+                        const x = index % 3;
                         const y = Math.floor(index / 3);
 
                         if (board[index] === "") {
@@ -579,18 +601,24 @@
                         // update the versus text
                         const mySign = isMyTurn ? currentPlayer : (currentPlayer === "x" ? "o" : "x");
                         faceOffText.innerText = `You (${mySign}) vs (${mySign == "x" ? "o" : "x"}) ${data["displayName"]}`;
+                        opponentNames.push(data["displayName"]);
                     } else if (data["event"] == "leaving") {
                         const mySign = isMyTurn ? currentPlayer : (currentPlayer === "x" ? "o" : "x");
                         faceOffText.innerText = `You (${mySign}) vs (${mySign == "x" ? "o" : "x"}) Nobody`;
                     } else if (data["event"] == "restart") {
+                        const otherSign = !isMyTurn ? currentPlayer : (currentPlayer === "x" ? "o" : "x");
                         isWon = false;
-                        turnText.innerText = "X's turn (Opponent)"
+                        turnText.innerText = `${otherSign.toUpperCase()}'s Turn (Opponent)`
                         turnText.style.color = "white";
-                        currentPlayer = "x";
+                        currentPlayer = otherSign;
                         isMyTurn = isRoomLeader || (room == null);
                         board = Array(9).fill("");
 
                         drawBoard();
+                    } else if (data["event"] == "leader") {
+                        isRoomLeader = true;
+                    } else if (data["event"] == "newopponentlist") {
+                        opponentNames = data["opponentNames"];
                     }
                 });
             });

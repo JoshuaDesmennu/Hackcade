@@ -71,6 +71,7 @@ main > * {
 .game-grid-title {
     font-size: 2rem;
     padding-bottom: 30px;
+    text-align: center;
 }
 
 /* @media screen and (max-width: 840px){
