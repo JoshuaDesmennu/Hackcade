@@ -25,7 +25,8 @@
        </main>
         <script>
             // definition of variables
-            const ws = new WebSocket(`wss://${window.location.host}`);
+            const protocol = location.protocol === "https:" ? "wss" : "ws";
+            const ws = new WebSocket(`${protocol}://${location.host}`);
 
             const form = document.querySelector(".room-form");
             const roomCodeInput = document.getElementById("roomCode");
@@ -512,8 +513,7 @@
                             event: "restart",
                         }
                     }))
-                           let boardPadding = 20 * (canvas.width / 720);
-}
+                }
                 drawBoard();
             }
 
@@ -535,6 +535,7 @@
                             roomCode: data["roomCode"],
                             numberOfPlayers: data["numberOfPlayers"],
                         };
+
 
                         currentPlayer = data["gameState"].currentPlayer;
                         isRoomLeader = data["isRoomLeader"];
@@ -619,6 +620,8 @@
                         isRoomLeader = true;
                     } else if (data["event"] == "newopponentlist") {
                         opponentNames = data["opponentNames"];
+                        const mySign = isMyTurn ? currentPlayer : (currentPlayer === "x" ? "o" : "x");
+                        faceOffText.innerText = `You (${mySign}) vs (${mySign == "x" ? "o" : "x"}) ${opponentNames[0] == null ? "Nobody" : opponentNames[0]}`; 
                     }
                 });
             });

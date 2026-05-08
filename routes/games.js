@@ -13,10 +13,10 @@ router.get("/checkers", (req, res) => {
     });
 })
 
-router.get("/chess", (req, res) => {
-    res.render("chess", {
-        title: "Chess",
-    })
-})
+// router.get("/chess", (req, res) => {
+//     res.render("chess", {
+//         title: "Chess",
+//     })
+// })
 
 module.exports = router;
