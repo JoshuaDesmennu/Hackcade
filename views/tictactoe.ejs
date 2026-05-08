@@ -523,13 +523,9 @@
 
             // socket handle
             ws.addEventListener("open", () => {
-                console.log("Connected to websocket");
                 ws.addEventListener("message", (e) => {
                     const data = JSON.parse(e.data);
                     if (data["event"] == "roomconnected") {
-                        console.log(
-                            `Connected to room with room code ${data["roomCode"]}`,
-                        );
                         board = data["gameState"].board;
                         room = {
                             roomCode: data["roomCode"],

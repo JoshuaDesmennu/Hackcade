@@ -9,7 +9,7 @@ router.get("/tictactoe", (req, res) => {
 
 router.get("/checkers", (req, res) => {
     res.render("checkers", {
-        title: "Checkers - Draughts - Damme"
+        title: "Checkers - Draughts - Damme",
     });
 })
 

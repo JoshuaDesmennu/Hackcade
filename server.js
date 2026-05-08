@@ -61,7 +61,6 @@ function removeSocketFromRoom(socket) {
 }
 
 wss.on("connection", (socket) => {
-    console.log("Just got a new connection");
     socket.on("message", (data) => {
         let jsonData;
         try {
@@ -217,7 +216,6 @@ wss.on("connection", (socket) => {
     });
 
     socket.on("close", (code) => {
-        console.log(`Disconnected with code ${code}`);
         if (socket.isConnected === true) {
             removeSocketFromRoom(socket);
         }
@@ -260,4 +258,4 @@ app.use((req, res) => {
     res.render("nope.ejs", { title: "404"});
 });
 
-server.listen(3000, "0.0.0.0");
+server.listen(process.env.PORT || 3000, "0.0.0.0");
