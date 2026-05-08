@@ -19,22 +19,19 @@ main > * {
 }
 
 .game-card {
-    width: 380px;
+    width: min(380px, 90vw);
     display: flex;
     align-items: center;
     justify-content: center;
     border-radius: 10px;
-    height: 380px;
+    height: min(380px, 90vw);
     background-color: #c21fe2;
     padding: 0px;
     position: relative;
     transition: background-color 200ms, padding 200ms;
 }
 
-.game-card:hover {
-    padding: 10px;
-    background-color: #a000c0;
-}
+
 
 .game-card > img {
     width: 90%;
@@ -60,23 +57,29 @@ main > * {
     transition: opacity 200ms;
 }
 
-.game-card-textbox:hover {
-    background: radial-gradient(rgba(44, 44, 44, 0.524), rgba(44, 44, 44, 0.521), transparent);
-}
 
-.game-card-textbox:hover > span {
-    opacity: 1;
+@media (hover: hover) {
+    .game-card-textbox:hover {
+        background: radial-gradient(rgba(44, 44, 44, 0.524), rgba(44, 44, 44, 0.521), transparent);
+    }
+    .game-card:hover {
+        padding: 10px;
+        background-color: #a000c0;
+    }
+    .game-card-textbox:hover > span {
+        opacity: 1;
+    }
 }
-
 .game-grid-title {
     font-size: 2rem;
     padding-bottom: 30px;
     text-align: center;
 }
 
-/* @media screen and (max-width: 840px){
+@media screen and (max-width: 840px){
     .game-grid {
-        grid-template-columns: auto;
+        row-gap: 30px;
+        column-gap: 0;
     }
     
-} */
+}
