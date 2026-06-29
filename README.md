@@ -7,6 +7,11 @@ Currently includes:
 - Tic Tac Toe
 - Checkers
 
+Coming Soon:
+- Spar (A Ghanaian Card Game)
+- Ludo
+- Chess
+
 ## Features
 
 - Real-time multiplayer gameplay
