@@ -18,6 +18,11 @@ let games = {
         maxPlayersPerRoom: 2,
         totalRooms: 0,
     },
+    spar: {
+        name: "Spar",
+        maxPlayersPerRoom: 2,
+        totalRooms: 0,
+    }
 };
 
 let rooms = {};
@@ -29,8 +34,9 @@ let rooms = {};
  */
 
 function removeSocketFromRoom(socket) {
+    const socketIndex = rooms[socket.roomCode].sockets.indexOf(socket);
     rooms[socket.roomCode].sockets = rooms[socket.roomCode].sockets.filter(
-        (s) => s != socket,
+        (s, index) => s != socket,
     );
 
     rooms[socket.roomCode].sockets.forEach((currentSocket) =>
@@ -49,8 +55,9 @@ function removeSocketFromRoom(socket) {
         games[socket.gameName].totalRooms--;
     } else if (socket.isRoomLeader === true) {
         socket.isRoomLeader = false;
-        rooms[socket.roomCode].sockets[0].isRoomLeader = true;
-        rooms[socket.roomCode].sockets[0].send(
+        const nextLeader = socketIndex % rooms[socket.roomCode].sockets.length;
+        rooms[socket.roomCode].sockets[nextLeader].isRoomLeader = true;
+        rooms[socket.roomCode].sockets[nextLeader].send(
             JSON.stringify({
                 event: "leader",
             }),
@@ -164,6 +171,8 @@ wss.on("connection", (socket) => {
                 room.sockets.push(socket);
             }
 
+            socket.id = crypto.randomUUID();
+
             socket.send(
                 JSON.stringify({
                     event: "roomconnected",
@@ -175,6 +184,7 @@ wss.on("connection", (socket) => {
                         .filter((s) => s !== socket)
                         .map((s) => s.displayName),
                     isRoomLeader: socket.isRoomLeader,
+                    id: socket.id,
                 }),
             );
         } else if (jsonData["event"] == "broadcastroom") {
@@ -195,9 +205,6 @@ wss.on("connection", (socket) => {
             if (room == null) return;
             if (
                 jsonData["gameState"] != null &&
-                jsonData["gameState"].board != null &&
-                jsonData["gameState"].currentPlayer != null &&
-                jsonData["gameState"].isWon != null &&
                 jsonData["roomCode"] === socket.roomCode
             ) {
                 socket.isTurn = jsonData["isTurn"];
@@ -229,10 +236,6 @@ app.get("/", (req, res) => {
     res.render("home", { title: "Home", games: games });
 });
 
-app.get("/how2play", (req, res) => {
-    res.render("how2play", { title: "How To Play" });
-});
-
 app.get("/about", (req, res) => {
     res.render("about.ejs", {title: "About"})
 })
@@ -252,7 +255,9 @@ app.get("/numberinroom/:roomCode", (req, res) => {
 });
 
 const gamesRouter = require("./routes/games");
+const howRouter = require("./routes/how");
 app.use("/games", gamesRouter);
+app.use("/how", howRouter);
 
 app.use((req, res) => {
     res.render("nope.ejs", { title: "404"});

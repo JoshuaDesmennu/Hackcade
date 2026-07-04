@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <%- include("./partials/head.ejs") %>
+    </head>
+    <body>
+        <header><%- include("./partials/navbar.ejs") %></header>
+        <main>
+            <button id="hideFormButton" class="form-shown">Hide Form</button>
+            <div class="gameArea">
+                <%- include("./partials/form.ejs") %>
+                <canvas id="board"></canvas>
+                <div class="game-info">
+                    <span id="isConnectedText" class="red">Not Connected</span>
+                    <span class="separator">.</span>
+                    <span id="faceOffText">Just You (local)</span>
+                    <span class="separator">.</span>
+                    <span id="turnText" class="green">Your turn</span>
+                </div>
+            </div>
+            <div class="actionButtons">
+                <button id="leaveButton">Leave Room</button>
+                <button id="restartButton">Restart Game</button>
+            </div>
+       </main>
+        <script>
+            const suits = ["spades", "clubs", "hearts", "diamonds"];
+            const pictureDesignNames = ["jack_black", "jack_red", "queen_black", "queen_red", "king_black", "king_red"];
+            const startButtons = ["No Pic No Ten", "Hands", "Triple Six", "Ready"];
+            const playingButtons = [];
+            const finishedDealButtons = ["Gba", "No Be Game", "Next Round"];
+            const allImageNames = [...suits, ...pictureDesignNames];
+            let buttonsToUse = startButtons;
+
+            // taken from real playing cards btw :)
+            const numberPositions = {
+                6: [
+                    [0.26, 0.2],
+                    [0.26, 0.5],
+                    [0.26, 0.2, -1],
+                    [0.74, 0.2],
+                    [0.74, 0.5],
+                    [0.74, 0.2, -1],
+                ],
+                7: [
+                    [0.26, 0.2],
+                    [0.26, 0.5],
+                    [0.26, 0.2, -1],
+                    [0.74, 0.2],
+                    [0.74, 0.5],
+                    [0.74, 0.2, -1],
+                    [0.5, 0.35]
+                ],
+                8: [
+                    [0.26, 0.2],
+                    [0.26, 0.5],
+                    [0.26, 0.2, -1],
+                    [0.74, 0.2],
+                    [0.74, 0.5],
+                    [0.74, 0.2, -1],
+                    [0.5, 0.35],
+                    [0.5, 0.35, -1]
+                ],
+                9: [
+                    [0.26, 0.2],
+                    [0.26, 0.4],
+                    [0.26, 0.4, -1],
+                    [0.26, 0.2, -1],
+                    [0.74, 0.2],
+                    [0.74, 0.4],
+                    [0.74, 0.4, -1],
+                    [0.74, 0.2, -1],
+                    [0.5, 0.5],
+                ],
+                10: [
+                    [0.26, 0.2],
+                    [0.26, 0.4],
+                    [0.26, 0.4, -1],
+                    [0.26, 0.2, -1],
+                    [0.74, 0.2],
+                    [0.74, 0.4],
+                    [0.74, 0.4, -1],
+                    [0.74, 0.2, -1],
+                    [0.5, 0.35],
+                    [0.5, 0.35, -1]
+                ],
+            }
+
+            const gameStates = {
+                PREGAME: 1,
+                REMOVETWO: 2,
+                REMOVETRIPLESIX: 3,
+                TRICKSTART: 4,
+                TRICKRESPONSE: 5,
+                FINISHEDDEAL: 6,
+            }
+            
+            let currentGameState = gameStates.PREGAME;
+
+            function loadImages(srcs) {
+                return Promise.all(
+                    srcs.map(src => {
+                        return new Promise((resolve, reject) => {
+                            const img = new Image();
+                            img.src = src;
+                            img.onload = () => resolve(img);
+                            img.onerror = reject;
+                        });
+                    })
+                );
+            }
+
+            loadImages(allImageNames.map((name) => `/images/suits/${name}.svg`)).then(images => {
+                const cardImages = images.reduce((acc, currentValue, index) => {
+                    acc[allImageNames[index]] = currentValue;
+                    return acc;
+                }, {});
+
+                // definition of variables
+                const protocol = location.protocol === "https:" ? "wss" : "ws";
+                const ws = new WebSocket(`${protocol}://${location.host}`);
+
+                const form = document.querySelector(".room-form");
+                const roomCodeInput = document.getElementById("roomCode");
+                const displayNameInput = document.getElementById("displayName");
+                const submitButton = document.querySelector(".room-form button");
+                const hideFormButton = document.getElementById("hideFormButton");
+                const showNavbarActions = document.getElementById("navbarDropdownButton");
+                const navbarLine = document.getElementById("navbarLine");
+                const navbarActions = document.getElementById("navbarActions");
+                const restartButton = document.getElementById("restartButton");
+                const mediaQuery = window.matchMedia("(max-width: 760px)");
+                
+                const isConnectedText = document.getElementById("isConnectedText");
+                const faceOffText = document.getElementById("faceOffText");
+                const turnText = document.getElementById("turnText");
+                const leaveButton = document.getElementById("leaveButton");
+                
+                const lastCode = localStorage.getItem("recentRoomCode");
+                const lastName = localStorage.getItem("displayName");
+
+                function generateShuffledSparDeck() {
+                    let deck = [];
+                    for (let i = 6; i < 14; i++) {
+                        deck.push(...[`d${i}`, `h${i}`, `s${i}`, `c${i}`]);
+                    }
+                    deck = shuffle(deck);
+                    return deck;
+                }
+
+                let isRoomLeader = false;
+                let isNavbarToggled = false;
+
+                let opponentNames = [];
+
+                // fill the form with the last values entered
+                if (lastCode != null) roomCodeInput.value = lastCode;
+                if (lastName != null) displayNameInput.value = lastName;
+
+                let room = null;
+                let uniqueID = null;
+                let isMyTurn = Boolean(Math.round(Math.random()));
+                let currentPlayer = 0;
+                turnText.innerText = `${isMyTurn ? "Your Turn" : "Opponent's Turn"}`;
+                let didWinLastGame = !isMyTurn;
+                let didWinLastTwoGames = didWinLastGame;
+                
+                const canvas = document.getElementById("board");
+                const context = canvas.getContext("2d");
+
+                let deck = generateShuffledSparDeck();
+                let playerHand = [deck.pop(),deck.pop(),deck.pop(),deck.pop(),deck.pop(),];
+                let opponentHand = [deck.pop(),deck.pop(),deck.pop(),deck.pop(),deck.pop(),];
+                let playedCards = {
+                    player: [],
+                    opponent: [],
+                }
+                let tricks = [];
+                let currentTrick = [];
+                let points = {
+                    player: 0,
+                    opponent: 0,
+                }
+                // get dimension-related properties of gameboard
+                canvas.width = canvas.getBoundingClientRect().width;
+                let previousWidth = canvas.width;
+                canvas.height = canvas.width;
+                let cardWidth = canvas.width / 5;
+                let fontHeight = 0.15 * cardWidth;
+                const heightScaleFactor = 1.33333;
+                
+                // updates the dimension-related properties of the gameboard with new dimensions
+                const updateBoardDimensions = () => {
+                    const newWidth = canvas.getBoundingClientRect().width;
+                    if (newWidth === previousWidth) return;
+
+                    // sync with animation redraw
+                    requestAnimationFrame(() => {
+                        previousWidth = newWidth;
+                        canvas.width = newWidth;
+                        canvas.height = newWidth;
+                        cardWidth = newWidth / 5;
+                        fontHeight = 0.15 * cardWidth;
+                    })
+                };
+
+                // toggle navbar dropdown on or off
+                showNavbarActions.addEventListener("click", () => {
+                    isNavbarToggled = !isNavbarToggled;
+                    if (isNavbarToggled) {
+                        navbarLine.className = "navbar-line";
+                        navbarActions.className = "navbar-actions"
+                        showNavbarActions.innerHTML = "&#x25B2;";
+                    } else {
+                        navbarLine.className = "navbar-line hidden";
+                        navbarActions.className = "navbar-actions hidden";
+                        showNavbarActions.innerHTML = "&#x25BC;";
+                    }
+                });
+
+                // leave room on click
+                leaveButton.addEventListener('click', (e) => {
+                })
+                
+                // changes styles of navbar based on screen dimensions
+                function handleMediaChange(e) {
+                    navbarLine.className = "navbar-line hidden";
+                    isNavbarToggled = false;
+                    if (e.matches) {
+                        showNavbarActions.innerHTML = "&#x25BC;";
+                        navbarActions.className = "navbar-actions hidden"
+                        showNavbarActions.className = "";
+                    } else {
+                        showNavbarActions.className = "hidden";
+                        navbarActions.className = "navbar-actions"
+                    }
+                }
+                
+                mediaQuery.addEventListener("change", handleMediaChange);
+
+                // connect to room on submit and save values
+                form.addEventListener("submit", (e) => {
+                    e.preventDefault();
+                    localStorage.setItem("recentRoomCode", form["roomCode"].value);
+                    localStorage.setItem("displayName", form["displayName"].value);
+
+                    connectToRoom(
+                        form["roomCode"].value,
+                        form["displayName"].value,
+                    );
+                });
+
+                function connectToRoom(roomCode, displayName) {
+                    room = null;
+                    isWon = false;
+                    // get the number of people in the room
+                    // if first person, send initial state as well as info
+                    fetch(`/numberinroom/${roomCode}`).then(async (res) => {
+                        const jsonData = await res.json();
+                        if (jsonData["event"] === "givenumberinroom") {
+                            ws.send(
+                                JSON.stringify({
+                                    event: "roomconnect",
+                                    roomCode: roomCode,
+                                    displayName: displayName,
+                                    gameName: "spar",
+                                }),
+                            );
+                        } else {
+                            ws.send(
+                                JSON.stringify({
+                                    event: "roomconnect",
+                                    roomCode: roomCode,
+                                    displayName: displayName,
+                                    gameName: "spar",
+                                    initialState: {
+                                        deck: {
+                                            deck: generateShuffledSparDeck(),
+                                            playedCards: {},
+                                            points: {},
+                                            state: currentGameState,
+                                        },
+                                        currentPlayer: null,
+                                    },
+                                }),
+                            );
+                        }
+                    });
+                }
+
+                // toggle room form on or off
+                hideFormButton.addEventListener("click", () => {
+                    if (form.classList.contains("hidden")) {
+                        form.classList.remove("hidden");
+                        hideFormButton.innerText = "Hide Form";
+                    } else {
+                        form.classList.add("hidden");
+                        hideFormButton.innerText = "Show Form";
+                    }
+                });
+
+                // handle when a user clicks on the canvas (tries to make a move)
+                canvas.addEventListener("click", (e) => {
+                    const x = e.offsetX;
+                    const y = e.offsetY;
+                    const totalSpaceOccupied = playerHand.length * cardWidth;
+                    const emptySpace = canvas.width - totalSpaceOccupied;
+
+                    const spaceAcountedX = Math.floor(x - emptySpace/2);
+
+                    if (y < cardWidth * heightScaleFactor && spaceAcountedX > 0 && spaceAcountedX < totalSpaceOccupied) {
+                        if (isMyTurn && [gameStates.TRICKRESPONSE, gameStates.TRICKSTART].includes(currentGameState)) {
+                            const index = Math.floor((spaceAcountedX/totalSpaceOccupied) * playerHand.length);
+                            let [playedCard] = playerHand.splice(index, 1);
+                            playedCards["player"].push(playedCard);
+                            currentTrick.push(playedCard);
+
+                            drawBoard();
+
+                            if (currentGameState === gameStates.TRICKSTART) {
+                                currentGameState = gameStates.TRICKRESPONSE;
+                                isMyTurn = !isMyTurn;
+                                turnText.innerText = `${isMyTurn ? "Your Turn" : "Opponent's Turn"}`;
+                                setTimeout(() => {
+                                    let [playedCard] = opponentHand.splice(opponentHand.findIndex((card) => getSuite(card) === getSuite(currentTrick[0])), 1);
+                                    if (playedCard == null) {
+                                        [playedCard] = opponentHand.splice(Math.floor(Math.max(0, (Math.random() - 0.1)) * opponentHand.length), 1);
+                                    }
+                                    playedCards["opponent"].push(playedCard);
+
+                                    currentTrick.push(playedCard);
+                                    tricks.push(currentTrick);
+                                    
+                                    drawBoard();
+                                    
+                                    const playerIsOnTop = analyzeTrick(currentTrick[0], currentTrick[1]);
+                                    currentTrick = [];
+                                    if (tricks.length < 5) {
+                                        currentGameState = gameStates.TRICKSTART;
+                                        if (playerIsOnTop) {
+                                            isMyTurn = true;
+                                            turnText.innerText = `${isMyTurn ? "Your Turn" : "Opponent's Turn"}`;
+                                        } else {
+                                            isMyTurn = false;
+                                            turnText.innerText = `${isMyTurn ? "Your Turn" : "Opponent's Turn"}`;
+                                            setTimeout(() => {
+                                                const [playedCard] = opponentHand.splice(Math.floor(Math.max((Math.random() - 0.1), 0) * opponentHand.length), 1);
+                                                playedCards["opponent"].push(playedCard);
+                                                currentTrick.push(playedCard);
+                                                drawBoard();
+                                                currentGameState = gameStates.TRICKRESPONSE;
+                                                isMyTurn = !isMyTurn;
+                                                turnText.innerText = `${isMyTurn ? "Your Turn" : "Opponent's Turn"}`;
+                                            }, Math.random() * 2000 + 500)
+                                        }
+                                    } else {
+                                        currentGameState = gameStates.FINISHEDDEAL;
+                                        buttonsToUse = finishedDealButtons;
+                                        didWinLastTwoGames = didWinLastGame;
+                                        didWinLastGame = playerIsOnTop;
+                                        if (playerIsOnTop) {
+                                            points["player"] += calculateDealPoints();
+                                        } else {
+                                            points["opponent"] += calculateDealPoints();
+                                        }
+                                        drawBoard();
+                                    }
+                                }, Math.random() * 2000 + 500);
+                            } else if (currentGameState === gameStates.TRICKRESPONSE) {
+                                const opponentIsOnTop = analyzeTrick(currentTrick[0], currentTrick[1]);
+                                tricks.push(currentTrick)
+                                currentTrick = [];
+                                if (tricks.length < 5) {
+
+                                    currentGameState = gameStates.TRICKSTART;
+                                    if (!opponentIsOnTop) {
+                                        isMyTurn = true;
+                                        turnText.innerText = `${isMyTurn ? "Your Turn" : "Opponent's Turn"}`;
+                                    } else {
+                                        isMyTurn = false;
+                                        turnText.innerText = `${isMyTurn ? "Your Turn" : "Opponent's Turn"}`;
+                                        setTimeout(() => {
+                                            const [playedCard] = opponentHand.splice(Math.floor(Math.max(Math.random() - 0.1) * opponentHand.length), 1);
+                                            playedCards["opponent"].push(playedCard);
+                                            currentTrick.push(playedCard);
+                                            drawBoard();
+                                            currentGameState = gameStates.TRICKRESPONSE;
+                                            isMyTurn = !isMyTurn;
+                                            turnText.innerText = `${isMyTurn ? "Your Turn" : "Opponent's Turn"}`;
+                                        }, Math.random() * 2000 + 500)
+                                    }
+                                } else {
+                                    currentGameState = gameStates.FINISHEDDEAL;
+                                    buttonsToUse = finishedDealButtons;
+                                    didWinLastTwoGames = didWinLastGame;
+                                    didWinLastGame = !opponentIsOnTop;
+                                    if (opponentIsOnTop) {
+                                        points["opponent"] += calculateDealPoints();
+                                    } else {
+                                        points["player"] += calculateDealPoints();
+                                    }
+                                    drawBoard();
+                                }
+                            }
+                        }
+                    } else if (y > cardWidth * heightScaleFactor + 20 && y < cardWidth * heightScaleFactor + fontHeight + 50) {
+                        if (currentGameState === gameStates.PREGAME) buttonsToUse = startButtons;
+                        else if (currentGameState === gameStates.TRICKSTART || currentGameState === gameStates.TRICKRESPONSE) buttonsToUse = playingButtons;
+                        const buttonSpaceTaken = buttonsToUse.reduce((acc, curr, i) => {
+                            acc += measureButtonWidth(curr) + 20;
+                            return acc;
+                        }, 0) - 20;
+                        const remainingSpace = canvas.width - buttonSpaceTaken;
+                        if (x > remainingSpace / 2 && x < remainingSpace / 2 + buttonSpaceTaken) {
+                            let widthSum = 0;
+                            for (let button of buttonsToUse) {
+                                if (x > remainingSpace / 2 + widthSum && x < remainingSpace / 2 + widthSum + measureButtonWidth(button)) {
+                                    handleButtonClick(button);
+                                }
+                                widthSum += measureButtonWidth(button) + 20;
+                            }
+                            console.log("clicked");
+                        }
+                    }
+                });
+
+                // returns true if starter won and false if response won
+                function analyzeTrick(starter, response) {
+                    if (getSuite(starter) != getSuite(response)) return true;
+                    if (getNumber(starter) > getNumber(response)) return true;
+                    return false;
+                }
+
+                function handleButtonClick(button) {
+                    switch (button) {
+                        case "No Pic No Ten": {
+                            if (playerHand.length < 5) return false;
+                            const isNoTen = hasNoTen(playerHand);
+                            if (!isNoTen) return false;
+                            
+                            // remove no ten
+                            playerHand.splice(Math.floor(Math.random() * (playerHand.length - 1)), 1);
+                            drawBoard();
+                            const intervalId = setInterval(() => {
+                                if (playerHand.length < 4) {
+                                    playerHand.push(...[deck.pop(), deck.pop()]);
+                                    drawBoard();
+                                    clearInterval(intervalId);
+                                    return;
+                                }
+                                playerHand.pop();
+                                drawBoard();
+                            }, 600)
+                            console.log("No ten removed")
+                            break;
+                        }
+                        case "No Be Game": {
+                            if (!isFairGame([...playerHand, ...playedCards["player"]], [...opponentHand, ...playedCards["opponent"]])) return false;
+                            nextRound();
+                            break;
+                        }
+                        case "Hands": {
+                            if (playerHand.length < 5) return false;
+                            const isHands = hasHands(playerHand);
+                            if (!isHands) return false;
+
+                            playerHand.splice(Math.floor(Math.random() * (playerHand.length - 1)), 1);
+                            drawBoard();
+                            const intervalId = setInterval(() => {
+                                if (playerHand.length < 4) {
+                                    playerHand.push(...[deck.pop(), deck.pop()]);
+                                    drawBoard();
+                                    clearInterval(intervalId);
+                                    return;
+                                }
+                                playerHand.pop();
+                                drawBoard();
+                            }, 600);
+
+                            break;
+                        }
+                        case "Triple Six": {
+                            if (playerHand < 5) return false;
+                            const isTripleSix = hasTripleSix(playerHand);
+                            if (!isTripleSix) return false;
+                            
+                            const sixCards = playerHand.filter((card) => getNumber(card) === 6);
+                            let randomIndex = Math.floor(Math.max(0, Math.random() - 0.1)) * sixCards.length;
+                            const firstSix = sixCards.splice(randomIndex, 1)[0];
+                            playerHand = playerHand.filter((card) => card !== firstSix);
+                            drawBoard();
+                            const intervalId = setInterval(() => {
+                                if (playerHand.length < 4) {
+                                    playerHand.push(...[deck.pop(), deck.pop()]);
+                                    drawBoard();
+                                    clearInterval(intervalId);
+                                    return;
+                                }
+                                let randomIndex = Math.floor(Math.max(0, Math.random() - 0.1)) * sixCards.length;
+                                let nextSix = sixCards.splice(randomIndex, 1)[0];
+                                playerHand = playerHand.filter((card) => card !== nextSix);
+                                drawBoard();
+                            }, 600);
+                            break;
+                        }
+                        case "Ready": {
+                            currentGameState = gameStates.TRICKSTART;
+                            buttonsToUse = playingButtons;
+                            if (didWinLastGame === true) {
+                                setTimeout(() => {
+                                    const [playedCard] = opponentHand.splice(Math.floor(Math.max(0, (Math.random() - 0.1)) * opponentHand.length), 1);
+                                    playedCards["opponent"].push(playedCard);
+                                    currentTrick.push(playedCard);
+                                    drawBoard();
+                                    currentGameState = gameStates.TRICKRESPONSE;
+                                    isMyTurn = true;
+                                    turnText.innerText = `${isMyTurn ? "Your Turn" : "Opponent's Turn"}`;
+                                }, Math.random() * 2000 + 500)
+                            }
+                            drawBoard();
+                            break;
+                        }
+                        case "Next Round": {
+                            nextRound();
+                            break;
+                        }
+                        case "Gba": {
+                            const didGba = evaluateGba();
+                            if (didGba.isGba && didGba.playerDidGba) {
+                                points["player"] -= 3;
+                            } else if (didGba.isGba && !didGba.playerDidGba) {
+                                points["opponent"] -= 3;
+                            } else {
+                                points["player"] -= 1;
+                            }
+                            nextRound();
+                            break;
+                        }
+                    }
+                    return false;
+                }
+
+                function nextRound(isAfresh) {
+                    if (deck.length < 10 || isAfresh === true) {
+                        deck = generateShuffledSparDeck();
+                    }
+                    playerHand = [deck.pop(),deck.pop(),deck.pop(),deck.pop(),deck.pop(),];
+                    opponentHand = [deck.pop(),deck.pop(),deck.pop(),deck.pop(),deck.pop(),];
+                    playedCards["player"] = [];
+                    playedCards["opponent"] = [];
+                    tricks = [];
+                    currentTrick = [];
+                    buttonsToUse = startButtons;
+                    drawBoard();
+                    currentGameState = gameStates.PREGAME;
+                }
+
+                function evaluateGba() {
+                    let ph = [...playedCards["player"]];
+                    let oh = [...playedCards["opponent"]];
+
+                    let pot = !didWinLastTwoGames;
+                    let caller, response;
+
+                    for (let trick of tricks) {
+                        caller = pot ? [...ph] : [...oh];
+                        response = !pot ? [...ph] : [...oh];
+
+                        caller = caller.filter((card) => card !== trick[0]);
+                        if (getSuite(trick[0]) !== getSuite(trick[1])) {
+                            let result = response.find((card) => getSuite(card) === getSuite(trick[0]));
+                            if (result !== undefined) {
+                                if (pot) {
+                                    return {
+                                         isGba: true,
+                                         playerDidGba: false,
+                                    }
+                                } else {
+                                    return {
+                                        isGba: true,
+                                        playerDidGba: true,
+                                    }
+                                }
+                            }
+                        }
+
+                        response = response.filter((card) => card !== trick[1]);
+
+                        if (pot) {
+                            ph = [...caller];
+                            oh = [...response];
+                        } else {
+                            oh = [...caller];
+                            ph = [...response];
+                        }
+
+                        const callerWonTrick = analyzeTrick(...trick);
+                        if (pot) {
+                            pot = callerWonTrick;
+                        } else {
+                            pot = !callerWonTrick;
+                        }
+
+                    }
+
+                    return {
+                        isGba: false,
+                        playerDidGba: false,
+                    }
+
+                }
+
+                function calculateDealPoints() {
+                    let handToUse = null;
+                    if (didWinLastGame) handToUse = [...playedCards["player"]];
+                    else handToUse = [...playedCards["opponent"]];
+                    handToUse.reverse();
+                    let points = 0;
+                    let lastTrick = tricks[tricks.length - 1];
+                    if (getNumber(handToUse[0]) > 7 || lastTrick[1] === handToUse[0]) {
+                        points = 1;
+                    } else {
+                        let lastCard = null;
+                        for (let card of handToUse) {
+                            if (getNumber(card) > 7 || lastCard != null && getSuite(lastCard) === getSuite(card)) break;
+                            if (getNumber(card) == 7) points += 2;
+                            else if (getNumber(card) == 6) points += 3;
+                            lastCard = card;
+                        }
+                    }
+                    return points;
+                }
+
+                function shuffle(array) {
+                    // Create a copy to avoid mutating the original array
+                    const shuffled = [...array];
+                    for (let i = shuffled.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+                    }
+                    return shuffled;
+                }
+
+
+                function drawCard(x, y, suit, number) {
+                    let color = "";
+                    if (suit == "hearts" || suit == "diamonds") {
+                        color = "red";
+                    } else {
+                        color = "black";
+                    }
+                    context.beginPath();
+                    context.fillStyle = "white";
+                    const cardHeight = heightScaleFactor * cardWidth;
+                    
+                    context.fillRect(x, y, cardWidth, cardHeight);
+                    context.strokeStyle = "black";
+                    context.strokeRect(x, y, cardWidth, cardHeight);
+                    context.textBaseline = "top";
+                    context.font = `${fontHeight}px sans-serif`;
+                    context.fillStyle = color;
+
+                    let numText = "";
+                    let scale = 1;
+                    let pictureName = "";
+                    if (number == 10) {
+                        scale = 0.7;
+                        numText = "10";
+                    } else if (number > 10) {
+                        switch (number) {
+                            case 11:
+                                numText = "J";
+                                pictureName = "jack";
+                                break;
+                            case 12:
+                                numText = "Q";
+                                pictureName = "queen";
+                                break;
+                            case 13:
+                                numText = "K";
+                                pictureName = "king";
+                                break;
+                        }
+                        if (number == 12) {
+                            scale = 0.7;
+                        } else {
+                            scale = 1;
+                        }
+                    } else {
+                        numText = `${number}`;
+                    }
+                    const textWidth = context.measureText(numText).width;
+
+                    context.fillText(numText, x + 0.1 * cardWidth - (textWidth * scale) / 2, y + 0.161 * cardHeight - (fontHeight / 2), textWidth * scale);
+                    context.save();
+                    context.translate(x + cardWidth, y + cardHeight);
+                    context.scale(-1, -1);
+                    context.fillText(numText, 0.1 * cardWidth - (textWidth * scale) / 2, 0.161 * cardHeight - (fontHeight / 2), textWidth * scale);
+                    context.restore();
+
+                    // draw card rectangle
+                    const smallHeight = cardHeight * 0.097;
+                    const smallScale = smallHeight / cardImages[suit].height;
+                    const smallWidth = cardImages[suit].width * smallScale;
+                    // small suit
+                    context.drawImage(cardImages[suit], x + 0.1 * cardWidth - (smallWidth / 2), y + 0.2674 * cardHeight - (smallHeight / 2), smallWidth, smallHeight);
+                    context.save();
+                    context.translate(x + cardWidth, y + cardHeight);
+                    context.scale(-1, -1);
+                    context.drawImage(cardImages[suit], 0.1 * cardWidth - (smallWidth / 2), 0.2674 * cardHeight - (smallHeight / 2), smallWidth, smallHeight);
+                    context.restore();
+
+                    const bigWidth = cardWidth * 0.186;
+                    const bigScale = bigWidth / cardImages[suit].width;
+                    const bigHeight = cardImages[suit].height * bigScale;
+                    // big suits
+                    if (number <= 10) {
+                        for (let position of numberPositions[number]) {
+                            if (position[2] !== -1) {
+                                context.drawImage(cardImages[suit], x + position[0] * cardWidth - (bigWidth / 2), y + position[1] * cardHeight - (bigHeight / 2), bigWidth, bigHeight);
+                            } else {
+                                context.save();
+                                context.translate(x + cardWidth, y + cardHeight);
+                                context.scale(-1, -1);
+                                // context.drawImage(cardImages[suit], position[0] * cardWidth - (bigWidth / 2), position[1] * cardHeight - (bigHeight / 2), bigWidth, bigHeight);
+                                context.drawImage(cardImages[suit], position[0] * cardWidth - (bigWidth / 2), position[1] * cardHeight - (bigHeight / 2), bigWidth, bigHeight);
+                                context.restore();
+                            }
+                        }
+                    } else {
+                        const pictureWidth = cardWidth * 0.6;
+                        const pictureHeight = cardHeight * 0.7907;
+                        context.drawImage(cardImages[`${pictureName}_${color}`], x + cardWidth/2 - pictureWidth/2, y + cardHeight/2 - pictureHeight/2, pictureWidth, pictureHeight);
+                    }
+                    context.closePath();
+                }
+
+                function getSuite(shortName) {
+                    switch (shortName[0]) {
+                        case "d": return "diamonds";
+                        case "c": return "clubs";
+                        case "h": return "hearts";
+                        case "s": return "spades";
+                    }
+                }
+
+                function getNumber(shortName) {
+                    return Number(shortName.substring(1));
+                }
+
+                // does the player have any card higher than a 9
+                function hasNoTen(hand) {
+                    for (let card of hand) {
+                        if (getNumber(card) >= 10) return false;
+                    }
+                    return true;
+                }
+
+                // does the player have all cards of the same suite
+                function hasHands(hand) {
+                    for (let i = 0; i < 4; i++) {
+                        if (getSuite(hand[i]) !== getSuite(hand[i+1])) return false;
+                    }
+                    return true;
+                }
+
+                // does the player have three or more sixes
+                function hasTripleSix(hand) {
+                    let sixCount = 0;
+                    for (let card of hand) {
+                        if (getNumber(card) === 6) sixCount++;
+                    }
+                    if (sixCount >= 3) return true;
+                    else return false;
+                }
+
+                function isFairGame(hand1, hand2) {
+                    for (let card1 of hand1) {
+                        for (let card2 of hand2) {
+                            if (getSuite(card1) === getSuite(card2)) return true;
+                        }
+                    }
+                    return false;
+                }
+
+                function drawPlayedHand(x, y, hand) {
+                    for (let i = 0; i < hand.length; i++) {
+                        drawCard(x + i * 0.2 * cardWidth, y, getSuite(hand[i]), getNumber(hand[i]));
+                    }
+                }
+
+                function measureButtonWidth(text) {
+                    context.font = `${fontHeight}px sans-serif`;
+                    return context.measureText(text).width + 40;
+                }
+
+                function drawButton(x, y, text) {
+                    context.save();
+                    const padding = 20;
+                    context.textBaseline = "top"
+                    context.font = `${fontHeight}px sans-serif`;
+                    context.fillStyle = "white";
+                    context.strokeStyle = "black";
+
+                    const buttonWidth  = context.measureText(text).width + padding * 2;
+
+                    context.fillRect(x, y, buttonWidth, fontHeight + padding * 2);
+                    context.strokeRect(x, y, buttonWidth, fontHeight + padding * 2);
+                    context.fillStyle = "black";
+                    context.fillText(text, x + padding, y + padding);
+                    context.restore();
+                    return buttonWidth;
+                }
+
+                function drawBoard() {
+                    context.save();
+                    context.textBaseline = "top";
+                    context.fillStyle = "green";
+                    context.fillRect(0, 0, canvas.width, canvas.height);
+
+                    let remainingButtonSpace = canvas.width - buttonsToUse.reduce((acc, curr, i) => {
+                        acc += measureButtonWidth(curr) + 20;
+                        return acc;
+                    }, 0);
+
+                    // draw game buttons 
+                    let widthSum = 0;
+                    for (let i = 0; i < buttonsToUse.length; i++) {
+                        widthSum += drawButton(remainingButtonSpace / 2 + widthSum, cardWidth * heightScaleFactor + 20, buttonsToUse[i]) + 20;
+                    }
+
+                    // draw unplayed cards
+                    const spaceLeft = (5 - playerHand.length) * cardWidth;
+                    for (let i = 0; i < playerHand.length; i++) {
+                        drawCard(i * canvas.width/5 + spaceLeft/2, 0, getSuite(playerHand[i]), getNumber(playerHand[i]));
+                    }
+                    
+                    // draw played cards
+                    const playedCardPositionY = cardWidth * heightScaleFactor + fontHeight + 100;
+                    // i used 1.8 because it'll show 4 * 0.2 of the last 4 cards and the whole last card
+                    drawPlayedHand(canvas.width / 2 - 1.8 * cardWidth - 40, playedCardPositionY, playedCards["player"]);
+                    drawPlayedHand(canvas.width / 2 + 40, playedCardPositionY, playedCards["opponent"]);
+
+                    // draw  scores
+                    context.fillStyle = "white";
+                    context.font = "25px sans-serif"
+                    const yourScoreDim = context.measureText("Your Score");
+                    const oppScoreDim = context.measureText("Opponent's Score");
+
+                    context.fillText("Your Score", canvas.width / 4 - (yourScoreDim.width / 2), playedCardPositionY + cardWidth * heightScaleFactor + 50)
+                    context.fillText("Opponent's Score", canvas.width * 3 / 4 - (oppScoreDim.width / 2), playedCardPositionY + cardWidth * heightScaleFactor + 50)
+
+                    
+                    context.font = "50px sans-serif";
+                    const pPtsText = `${points["player"]}`;
+                    const oPtsText = `${points["opponent"]}`;
+                    context.fillText(pPtsText, canvas.width / 4 - context.measureText(pPtsText).width / 2, playedCardPositionY + cardWidth * heightScaleFactor + 105);
+                    context.fillText(oPtsText, canvas.width * 3 / 4 - context.measureText(oPtsText).width / 2, playedCardPositionY + cardWidth * heightScaleFactor + 105);
+                    context.restore();
+                } 
+                restartButton.addEventListener("click", () => {
+                    points["opponent"] = 0;
+                    points["player"] = 0;
+                    isMyTurn = true;
+                    currentGameState = gameStates.PREGAME;
+                    isMyTurn = Boolean(Math.round(Math.random()));
+                    turnText.innerText = `${isMyTurn ? "Your Turn" : "Opponent's Turn"}`;
+                    didWinLastGame = !isMyTurn;
+                    didWinLastTwoGames = didWinLastGame;
+                    nextRound(true);
+                });
+
+                ws.addEventListener("open", () => {
+                    ws.addEventListener("message", (e) => {
+                        const data = JSON.parse(e.data);
+                        if (data["event"] == "roomconnected") {
+                            nextRound(true);
+                            room = {
+                                roomCode: data["roomCode"],
+                                numberOfPlayers: data["numberOfPlayers"],
+                            };
+                            isConnectedText.innerText = "Connected";
+                            isConnectedText.style.color = "green";
+                            faceOffText.innerText = `You vs ${data["opponentNames"].length == 0 ? "Nobody" : data["opponentNames"][0]}`;
+                            turnText.innerText = data["isTurn"] ? "Your Turn" : "Opponent's Turn";
+                            turnText.style.color = data["isTurn"] ? "green" : "white";
+                            uniqueID = data["id"];
+                            deck = data["gameState"].deck;
+                            playerHand = [deck.pop(), deck.pop(), deck.pop(), deck.pop(), deck.pop()];
+                            if (data["numberOfPlayers"] == 1) {
+                                ws.send(
+                                    JSON.stringify({
+                                        event: "updatestate",
+                                        roomCode: room.roomCode,
+                                        gameState: {
+                                            deck: generateShuffledSparDeck(),
+                                            currentPlayer: uniqueID,
+                                            playedCards: {},
+                                            points: {},
+                                            state: currentGameState,
+                                        },
+                                        isTurn: isMyTurn,
+                                    })
+                                );
+                            } else if (data["numberOfPlayers"] > 1){
+                                ws.send(
+                                    JSON.stringify({
+                                        event: "updatestate",
+                                        roomCode: room.roomCode,
+                                        gameState: {
+                                            ...data["gameState"],
+                                            deck: deck,
+                                        },
+                                        isTurn: data["isTurn"],
+                                    })
+                                );
+                            }
+                            drawBoard();
+                        }
+                    });
+                });
+
+                handleMediaChange(mediaQuery);
+                drawBoard();
+
+            });
+        </script>
+    </body>
+</html>

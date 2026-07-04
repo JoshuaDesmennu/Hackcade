@@ -13,6 +13,12 @@ router.get("/checkers", (req, res) => {
     });
 })
 
+router.get("/spar", (req, res) => {
+    res.render("spar", {
+        title: "Spar - A Ghanaian Card Game"
+    })
+})
+
 // router.get("/chess", (req, res) => {
 //     res.render("chess", {
 //         title: "Chess",
