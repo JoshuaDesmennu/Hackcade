@@ -70,8 +70,11 @@ button {
     font-size: 18px;
     border: 1px solid #ccc;
     font-weight: bold;
-    transition-property: background-color;
-    transition-duration: 150ms;
+    transition: background-color 200ms ease, transform 200ms ease;
+}
+
+button:active {
+    transform: scale(0.97);
 }
 
 @media (hover: hover) {
@@ -137,8 +140,6 @@ label {
 #leaveButton {
     color: red;
 }
-
-
 
 @media screen and (max-width: 760px){
     .room-form {

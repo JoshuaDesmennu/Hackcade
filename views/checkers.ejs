@@ -16,6 +16,8 @@
                 <span id="faceOffText">You (black) vs (red) Local</span>
                 <span class="separator">.</span>
                 <span id="turnText" class="green">Black's Turn (You)</span>
+                <span class="separator">.</span>
+                <span id="leaderIcon">🚫</span>
             </div>
         </div>
         <div class="actionButtons">
@@ -641,6 +643,7 @@
         faceOffText.innerText = "You (black) vs (red) Local";
         turnText.innerText = "Black's turn (You)"
         turnText.className = "green";
+        leaderIcon.innerText = "🚫"
         currentPlayer = "b";
         isMyTurn = true;
         board = createDefaultBoard();
@@ -738,16 +741,16 @@
                 faceOffText.innerText = `You (${mySign == "b" ? "black" : "red"}) vs (${mySign == "b" ? "red" : "black"}) ${opponentNames[0] == null ? "Nobody" : opponentNames[0]}`;
                 turnText.innerText = `${currentPlayer == "b" ? "Black" : "Red"}'s Turn (${isMyTurn ? "You" : "Opponent"})`;
                 turnText.style.color = isMyTurn ? "green" : "white";
-                ws.send(JSON.stringify({
-                    event: "broadcastroom",
-                    roomCode: room.roomCode,
-                    body: {
-                        event: "justjoined",
-                        displayName: localStorage.getItem("displayName"),
-                    }
-                }))
+                // ws.send(JSON.stringify({
+                //     event: "broadcastroom",
+                //     roomCode: room.roomCode,
+                //     body: {
+                //         event: "justjoined",
+                //         displayName: localStorage.getItem("displayName"),
+                //     }
+                // }))
                 // check winner here
-
+                leaderIcon.innerText = "👑";
                 drawBoard();
 
                 // if there is a winner (change false)
@@ -819,6 +822,7 @@
                 drawBoard();
             } else if (data["event"] == "leader") {
                 isRoomLeader = true;
+                leaderIcon.innerText = "👑";
             } else if (data["event"] == "newopponentlist") {
                 opponentNames = data["opponentNames"]
             }

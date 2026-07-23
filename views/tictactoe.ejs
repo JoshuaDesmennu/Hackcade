@@ -16,6 +16,9 @@
                     <span id="faceOffText">You (x) vs (o) Local</span>
                     <span class="separator">.</span>
                     <span id="turnText" class="green">X's Turn (You)</span>
+                    <span class="separator">.</span>
+                    <span id="leaderIcon">🚫</span>
+
                 </div>
             </div>
             <div class="actionButtons">
@@ -441,6 +444,7 @@
                         }
                     )
                 )
+
                 isWon = false;
                 room = null;
                 isConnectedText.innerText = "Not Connected";
@@ -448,6 +452,7 @@
                 faceOffText.innerText = "You (x) vs (o) Local";
                 turnText.innerText = "X's Turn (You)"
                 turnText.style.color = "green";
+                leaderIcon.innerText = "🚫"
                 currentPlayer = "x";
                 isMyTurn = true;
                 board = Array(9).fill("");
@@ -532,9 +537,11 @@
                             numberOfPlayers: data["numberOfPlayers"],
                         };
 
-
                         currentPlayer = data["gameState"].currentPlayer;
                         isRoomLeader = data["isRoomLeader"];
+                        if (isRoomLeader) {
+                            leaderIcon.innerText = "👑";
+                        }
                         isMyTurn = data["isTurn"];
                         isConnectedText.innerText = "Connected";
                         isConnectedText.className = "green";
@@ -543,14 +550,14 @@
                         faceOffText.innerText = `You (${mySign}) vs (${mySign == "x" ? "o" : "x"}) ${opponentNames[0] == null ? "Nobody" : opponentNames[0]}`; 
                         turnText.innerText = `${currentPlayer.toUpperCase()}'s Turn (${isMyTurn ? "You" : "Opponent"})`;
                         turnText.style.color = isMyTurn ? "green" : "white";
-                        ws.send(JSON.stringify({
-                            event: "broadcastroom",
-                            roomCode: room.roomCode,
-                            body: {
-                                event: "justjoined",
-                                displayName: localStorage.getItem("displayName"),
-                            }
-                        }))
+                        // ws.send(JSON.stringify({
+                        //     event: "broadcastroom",
+                        //     roomCode: room.roomCode,
+                        //     body: {
+                        //         event: "justjoined",
+                        //         displayName: localStorage.getItem("displayName"),
+                        //     }
+                        // }))
                         const result = checkGameWon(currentPlayer == "x" ? "o" : "x");
                         drawBoard();
 
@@ -614,6 +621,7 @@
                         drawBoard();
                     } else if (data["event"] == "leader") {
                         isRoomLeader = true;
+                        leaderIcon.innerText = "👑";
                     } else if (data["event"] == "newopponentlist") {
                         opponentNames = data["opponentNames"];
                         const mySign = isMyTurn ? currentPlayer : (currentPlayer === "x" ? "o" : "x");

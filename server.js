@@ -33,13 +33,21 @@ let rooms = {};
  * game name
  */
 
-function removeSocketFromRoom(socket) {
+function removeSocketFromRoom(socket, code) {
     const socketIndex = rooms[socket.roomCode].sockets.indexOf(socket);
     rooms[socket.roomCode].sockets = rooms[socket.roomCode].sockets.filter(
         (s, index) => s != socket,
     );
 
-    rooms[socket.roomCode].sockets.forEach((currentSocket) =>
+    rooms[socket.roomCode].sockets.forEach((currentSocket) => {
+        currentSocket.send(
+            JSON.stringify(
+                {
+                    event: "leaving",
+                    id: socket.id,
+                }
+            )
+        )
         currentSocket.send(
             JSON.stringify({
                 event: "newopponentlist",
@@ -47,8 +55,8 @@ function removeSocketFromRoom(socket) {
                     .filter((s) => s !== currentSocket)
                     .map((s) => s.displayName),
             }),
-        ),
-    );
+        );
+    });
 
     if (--rooms[socket.roomCode].numberOfPlayers === 0) {
         delete rooms[socket.roomCode];
@@ -86,7 +94,7 @@ wss.on("connection", (socket) => {
                 socket.send(
                     JSON.stringify({
                         event: "roomnotconnected",
-                        reason: "invalid field lengths",
+                        reason: "The fields provided are of unsupported lengths",
                     }),
                 );
                 return;
@@ -99,7 +107,7 @@ wss.on("connection", (socket) => {
                 socket.send(
                     JSON.stringify({
                         event: "roomnotconnected",
-                        reason: "already connected",
+                        reason: "User is already connected to requested room",
                     }),
                 );
                 return;
@@ -114,7 +122,7 @@ wss.on("connection", (socket) => {
                     socket.send(
                         JSON.stringify({
                             event: "roomnotconnected",
-                            reason: "room occupied",
+                            reason: "The requested room is occupied with a different game",
                         }),
                     );
                     return;
@@ -128,7 +136,7 @@ wss.on("connection", (socket) => {
                     socket.send(
                         JSON.stringify({
                             event: "roomnotconnected",
-                            reason: "room full",
+                            reason: "The requested room is full",
                         }),
                     );
                     return;
@@ -187,7 +195,16 @@ wss.on("connection", (socket) => {
                     id: socket.id,
                 }),
             );
-        } else if (jsonData["event"] == "broadcastroom") {
+
+            rooms[jsonData["roomCode"]].sockets.filter((s) => s != socket).forEach((s) => {
+                s.send(JSON.stringify({
+                    event: "justjoined",
+                    displayName: socket.displayName,
+                    id: socket.id
+                }))
+            })
+
+       } else if (jsonData["event"] == "broadcastroom") {
             const room = rooms[jsonData["roomCode"]];
             if (room == null) return;
             if (
@@ -207,12 +224,16 @@ wss.on("connection", (socket) => {
                 jsonData["gameState"] != null &&
                 jsonData["roomCode"] === socket.roomCode
             ) {
-                socket.isTurn = jsonData["isTurn"];
-                room.sockets
-                    .filter((s) => s != socket)
-                    .forEach((s) => {
-                        s.isTurn = !socket.isTurn;
-                    });
+                if (jsonData["isTurn"] != null) {
+                    socket.isTurn = jsonData["isTurn"];
+                    if (socket.isTurn == true) {
+                        room.sockets
+                            .filter((s) => s != socket)
+                            .forEach((s) => {
+                                s.isTurn = !socket.isTurn;
+                            });
+                    }
+                }
                 room.gameState = jsonData["gameState"];
             }
         } else if (jsonData["event"] == "leaveroom") {
@@ -224,7 +245,7 @@ wss.on("connection", (socket) => {
 
     socket.on("close", (code) => {
         if (socket.isConnected === true) {
-            removeSocketFromRoom(socket);
+            removeSocketFromRoom(socket, code);
         }
     });
 });
