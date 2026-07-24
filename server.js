@@ -254,11 +254,11 @@ app.use(express.static("static"));
 app.set("view engine", "ejs");
 
 app.get("/", (req, res) => {
-    res.render("home", { title: "Home", games: games });
+    res.render("home", { title: "Home", games: games, howroute: "general"});
 });
 
 app.get("/about", (req, res) => {
-    res.render("about.ejs", {title: "About"})
+    res.render("about.ejs", {title: "About", howroute: "general"})
 })
 
 app.get("/numberinroom/:roomCode", (req, res) => {
@@ -281,7 +281,7 @@ app.use("/games", gamesRouter);
 app.use("/how", howRouter);
 
 app.use((req, res) => {
-    res.render("nope.ejs", { title: "404"});
+    res.render("nope.ejs", { title: "404", howroute: "general"});
 });
 
 server.listen(process.env.PORT || 3000, "0.0.0.0");

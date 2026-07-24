@@ -24,11 +24,23 @@
                 <button id="leaveButton">Leave Room</button>
                 <button id="restartButton">Restart Game</button>
             </div>
-       </main>
+        </main>
         <script>
             const suits = ["spades", "clubs", "hearts", "diamonds"];
-            const pictureDesignNames = ["jack_black", "jack_red", "queen_black", "queen_red", "king_black", "king_red"];
-            const startButtons = ["No Pic No Ten", "Hands", "Triple Six", "Ready"];
+            const pictureDesignNames = [
+                "jack_black",
+                "jack_red",
+                "queen_black",
+                "queen_red",
+                "king_black",
+                "king_red",
+            ];
+            const startButtons = [
+                "No Pic No Ten",
+                "Hands",
+                "Triple Six",
+                "Ready",
+            ];
             const playingButtons = [];
             const finishedDealButtons = ["Gba", "No Be Game", "Next Round"];
             const allImageNames = [...suits, ...pictureDesignNames];
@@ -51,7 +63,7 @@
                     [0.74, 0.2],
                     [0.74, 0.5],
                     [0.74, 0.2, -1],
-                    [0.5, 0.35]
+                    [0.5, 0.35],
                 ],
                 8: [
                     [0.26, 0.2],
@@ -61,7 +73,7 @@
                     [0.74, 0.5],
                     [0.74, 0.2, -1],
                     [0.5, 0.35],
-                    [0.5, 0.35, -1]
+                    [0.5, 0.35, -1],
                 ],
                 9: [
                     [0.26, 0.2],
@@ -84,9 +96,9 @@
                     [0.74, 0.4, -1],
                     [0.74, 0.2, -1],
                     [0.5, 0.35],
-                    [0.5, 0.35, -1]
+                    [0.5, 0.35, -1],
                 ],
-            }
+            };
 
             const gameStates = {
                 PREGAME: 1,
@@ -95,26 +107,28 @@
                 TRICKSTART: 4,
                 TRICKRESPONSE: 5,
                 FINISHEDDEAL: 6,
-            }
-            
+            };
+
             // this is set when an online opponent is ready and plays before the client is ready
             // it will be preferred to the currentGameState at the start of the round if it is set
             let gameStartedBeforeReady = false;
 
             function loadImages(srcs) {
                 return Promise.all(
-                    srcs.map(src => {
+                    srcs.map((src) => {
                         return new Promise((resolve, reject) => {
                             const img = new Image();
                             img.src = src;
                             img.onload = () => resolve(img);
                             img.onerror = reject;
                         });
-                    })
+                    }),
                 );
             }
 
-            loadImages(allImageNames.map((name) => `/images/suits/${name}.svg`)).then(images => {
+            loadImages(
+                allImageNames.map((name) => `/images/suits/${name}.svg`),
+            ).then((images) => {
                 const cardImages = images.reduce((acc, currentValue, index) => {
                     acc[allImageNames[index]] = currentValue;
                     return acc;
@@ -127,20 +141,25 @@
                 const form = document.querySelector(".room-form");
                 const roomCodeInput = document.getElementById("roomCode");
                 const displayNameInput = document.getElementById("displayName");
-                const submitButton = document.querySelector(".room-form button");
-                const hideFormButton = document.getElementById("hideFormButton");
-                const showNavbarActions = document.getElementById("navbarDropdownButton");
+                const submitButton =
+                    document.querySelector(".room-form button");
+                const hideFormButton =
+                    document.getElementById("hideFormButton");
+                const showNavbarActions = document.getElementById(
+                    "navbarDropdownButton",
+                );
                 const navbarLine = document.getElementById("navbarLine");
                 const navbarActions = document.getElementById("navbarActions");
                 const restartButton = document.getElementById("restartButton");
                 const mediaQuery = window.matchMedia("(max-width: 760px)");
-                
-                const isConnectedText = document.getElementById("isConnectedText");
+
+                const isConnectedText =
+                    document.getElementById("isConnectedText");
                 const faceOffText = document.getElementById("faceOffText");
                 const turnText = document.getElementById("turnText");
                 const leaderIcon = document.getElementById("leaderIcon");
                 const leaveButton = document.getElementById("leaveButton");
-                
+
                 const lastCode = localStorage.getItem("recentRoomCode");
                 const lastName = localStorage.getItem("displayName");
 
@@ -171,23 +190,40 @@
                 turnText.style.color = isMyTurn ? "green" : "white";
                 let didWinLastGame = !isMyTurn;
                 let didWinLastTwoGames = didWinLastGame;
-                
+
+                let canClickNextRound = true;
+                let nextRoundTimerID = null;
+
                 const canvas = document.getElementById("board");
                 const context = canvas.getContext("2d");
 
                 let deck = generateShuffledSparDeck();
-                let playerHand = [deck.pop(),deck.pop(),deck.pop(),deck.pop(),deck.pop(),];
-                let opponentHand = [deck.pop(),deck.pop(),deck.pop(),deck.pop(),deck.pop(),];
+                let playerHand = [
+                    deck.pop(),
+                    deck.pop(),
+                    deck.pop(),
+                    deck.pop(),
+                    deck.pop(),
+                ];
+                let opponentHand = [
+                    deck.pop(),
+                    deck.pop(),
+                    deck.pop(),
+                    deck.pop(),
+                    deck.pop(),
+                ];
                 let playedCards = {
                     player: [],
                     opponent: [],
-                }
+                };
                 let tricks = [];
                 let currentTrick = [];
                 let points = {
                     player: 0,
                     opponent: 0,
-                }
+                    pp: 0,
+                    po: 0,
+                };
                 // get dimension-related properties of gameboard
                 canvas.width = canvas.getBoundingClientRect().width;
                 let previousWidth = canvas.width;
@@ -195,7 +231,7 @@
                 let cardWidth = canvas.width / 5;
                 let fontHeight = 0.15 * cardWidth;
                 const heightScaleFactor = 1.33333;
-                
+
                 // updates the dimension-related properties of the gameboard with new dimensions
                 const updateBoardDimensions = () => {
                     const newWidth = canvas.getBoundingClientRect().width;
@@ -208,7 +244,7 @@
                         canvas.height = newWidth;
                         cardWidth = newWidth / 5;
                         fontHeight = 0.15 * cardWidth;
-                    })
+                    });
                 };
 
                 // toggle navbar dropdown on or off
@@ -216,7 +252,7 @@
                     isNavbarToggled = !isNavbarToggled;
                     if (isNavbarToggled) {
                         navbarLine.className = "navbar-line";
-                        navbarActions.className = "navbar-actions"
+                        navbarActions.className = "navbar-actions";
                         showNavbarActions.innerHTML = "&#x25B2;";
                     } else {
                         navbarLine.className = "navbar-line hidden";
@@ -224,28 +260,34 @@
                         showNavbarActions.innerHTML = "&#x25BC;";
                     }
                 });
-                
+
                 // changes styles of navbar based on screen dimensions
                 function handleMediaChange(e) {
                     navbarLine.className = "navbar-line hidden";
                     isNavbarToggled = false;
                     if (e.matches) {
                         showNavbarActions.innerHTML = "&#x25BC;";
-                        navbarActions.className = "navbar-actions hidden"
+                        navbarActions.className = "navbar-actions hidden";
                         showNavbarActions.className = "";
                     } else {
                         showNavbarActions.className = "hidden";
-                        navbarActions.className = "navbar-actions"
+                        navbarActions.className = "navbar-actions";
                     }
                 }
-                
+
                 mediaQuery.addEventListener("change", handleMediaChange);
 
                 // connect to room on submit and save values
                 form.addEventListener("submit", (e) => {
                     e.preventDefault();
-                    localStorage.setItem("recentRoomCode", form["roomCode"].value);
-                    localStorage.setItem("displayName", form["displayName"].value);
+                    localStorage.setItem(
+                        "recentRoomCode",
+                        form["roomCode"].value,
+                    );
+                    localStorage.setItem(
+                        "displayName",
+                        form["displayName"].value,
+                    );
 
                     connectToRoom(
                         form["roomCode"].value,
@@ -307,22 +349,37 @@
                     const totalSpaceOccupied = playerHand.length * cardWidth;
                     const emptySpace = canvas.width - totalSpaceOccupied;
 
-                    const spaceAcountedX = Math.floor(x - emptySpace/2);
+                    const spaceAcountedX = Math.floor(x - emptySpace / 2);
 
-                    if (y < cardWidth * heightScaleFactor && spaceAcountedX > 0 && spaceAcountedX < totalSpaceOccupied) {
-                        if (isMyTurn && [gameStates.TRICKRESPONSE, gameStates.TRICKSTART].includes(currentGameState)) {
-                            const index = Math.floor((spaceAcountedX/totalSpaceOccupied) * playerHand.length);
+                    if (
+                        y < cardWidth * heightScaleFactor &&
+                        spaceAcountedX > 0 &&
+                        spaceAcountedX < totalSpaceOccupied
+                    ) {
+                        if (
+                            isMyTurn &&
+                            [
+                                gameStates.TRICKRESPONSE,
+                                gameStates.TRICKSTART,
+                            ].includes(currentGameState)
+                        ) {
+                            const index = Math.floor(
+                                (spaceAcountedX / totalSpaceOccupied) *
+                                    playerHand.length,
+                            );
                             let [playedCard] = playerHand.splice(index, 1);
                             playedCards["player"].push(playedCard);
                             if (room != null) {
-                                ws.send(JSON.stringify({
-                                    "event": "broadcastroom",
-                                    "roomCode": room.roomCode,
-                                    "body": {
-                                        "event": "move",
-                                        "card": playedCard,
-                                    }
-                                }))
+                                ws.send(
+                                    JSON.stringify({
+                                        event: "broadcastroom",
+                                        roomCode: room.roomCode,
+                                        body: {
+                                            event: "move",
+                                            card: playedCard,
+                                        },
+                                    }),
+                                );
                             }
                             currentTrick.push(playedCard);
 
@@ -332,82 +389,182 @@
                                 currentGameState = gameStates.TRICKRESPONSE;
                                 isMyTurn = !isMyTurn;
                                 turnText.innerText = `${isMyTurn ? "Your Turn" : "Opponent's Turn"}`;
-                                turnText.style.color = isMyTurn ? "green" : "white";
+                                turnText.style.color = isMyTurn
+                                    ? "green"
+                                    : "white";
                                 if (room == null) {
-                                    setTimeout(() => {
-                                        let [playedCard] = opponentHand.splice(opponentHand.findIndex((card) => getSuite(card) === getSuite(currentTrick[0])), 1);
-                                        if (playedCard == null) {
-                                            [playedCard] = opponentHand.splice(Math.floor(Math.max(0, (Math.random() - 0.1)) * opponentHand.length), 1);
-                                        }
-                                        playedCards["opponent"].push(playedCard);
+                                    setTimeout(
+                                        () => {
+                                            let [playedCard] =
+                                                opponentHand.splice(
+                                                    opponentHand.findIndex(
+                                                        (card) =>
+                                                            getSuite(card) ===
+                                                            getSuite(
+                                                                currentTrick[0],
+                                                            ),
+                                                    ),
+                                                    1,
+                                                );
+                                            if (playedCard == null) {
+                                                [playedCard] =
+                                                    opponentHand.splice(
+                                                        Math.floor(
+                                                            Math.max(
+                                                                0,
+                                                                Math.random() -
+                                                                    0.1,
+                                                            ) *
+                                                                opponentHand.length,
+                                                        ),
+                                                        1,
+                                                    );
+                                            }
+                                            playedCards["opponent"].push(
+                                                playedCard,
+                                            );
 
-                                        currentTrick.push(playedCard);
-                                        tricks.push(currentTrick);
-                                        
-                                        drawBoard();
-                                        
-                                        const playerIsOnTop = analyzeTrick(currentTrick[0], currentTrick[1]);
-                                        currentTrick = [];
-                                        if (tricks.length < 5) {
-                                            currentGameState = gameStates.TRICKSTART;
-                                            if (playerIsOnTop) {
-                                                isMyTurn = true;
-                                                turnText.innerText = `${isMyTurn ? "Your Turn" : "Opponent's Turn"}`;
-                                                turnText.style.color = isMyTurn ? "green" : "white";
-                                            } else {
-                                                isMyTurn = false;
-                                                turnText.innerText = `${isMyTurn ? "Your Turn" : "Opponent's Turn"}`;
-                                                turnText.style.color = isMyTurn ? "green" : "white";
-                                                setTimeout(() => {
-                                                    const [playedCard] = opponentHand.splice(Math.floor(Math.max((Math.random() - 0.1), 0) * opponentHand.length), 1);
-                                                    playedCards["opponent"].push(playedCard);
-                                                    currentTrick.push(playedCard);
-                                                    drawBoard();
-                                                    currentGameState = gameStates.TRICKRESPONSE;
-                                                    isMyTurn = !isMyTurn;
-                                                    turnText.innerText = `${isMyTurn ? "Your Turn" : "Opponent's Turn"}`;
-                                                    turnText.style.color = isMyTurn ? "green" : "white";
-                                                }, Math.random() * 2000 + 500)
-                                            }
-                                        } else {
-                                            currentGameState = gameStates.FINISHEDDEAL;
-                                            buttonsToUse = finishedDealButtons;
-                                            didWinLastTwoGames = didWinLastGame;
-                                            didWinLastGame = playerIsOnTop;
-                                            if (playerIsOnTop) {
-                                                points["player"] += calculateDealPoints();
-                                            } else {
-                                                points["opponent"] += calculateDealPoints();
-                                            }
+                                            currentTrick.push(playedCard);
+                                            tricks.push(currentTrick);
+
                                             drawBoard();
-                                        }
-                                    }, Math.random() * 2000 + 500);
+
+                                            const playerIsOnTop = analyzeTrick(
+                                                currentTrick[0],
+                                                currentTrick[1],
+                                            );
+                                            currentTrick = [];
+                                            if (tricks.length < 5) {
+                                                currentGameState =
+                                                    gameStates.TRICKSTART;
+                                                if (playerIsOnTop) {
+                                                    isMyTurn = true;
+                                                    turnText.innerText = `${isMyTurn ? "Your Turn" : "Opponent's Turn"}`;
+                                                    turnText.style.color =
+                                                        isMyTurn
+                                                            ? "green"
+                                                            : "white";
+                                                } else {
+                                                    isMyTurn = false;
+                                                    turnText.innerText = `${isMyTurn ? "Your Turn" : "Opponent's Turn"}`;
+                                                    turnText.style.color =
+                                                        isMyTurn
+                                                            ? "green"
+                                                            : "white";
+                                                    setTimeout(
+                                                        () => {
+                                                            const [playedCard] =
+                                                                opponentHand.splice(
+                                                                    Math.floor(
+                                                                        Math.max(
+                                                                            Math.random() -
+                                                                                0.1,
+                                                                            0,
+                                                                        ) *
+                                                                            opponentHand.length,
+                                                                    ),
+                                                                    1,
+                                                                );
+                                                            playedCards[
+                                                                "opponent"
+                                                            ].push(playedCard);
+                                                            currentTrick.push(
+                                                                playedCard,
+                                                            );
+                                                            drawBoard();
+                                                            currentGameState =
+                                                                gameStates.TRICKRESPONSE;
+                                                            isMyTurn =
+                                                                !isMyTurn;
+                                                            turnText.innerText = `${isMyTurn ? "Your Turn" : "Opponent's Turn"}`;
+                                                            turnText.style.color =
+                                                                isMyTurn
+                                                                    ? "green"
+                                                                    : "white";
+                                                        },
+                                                        Math.random() * 2000 +
+                                                            500,
+                                                    );
+                                                }
+                                            } else {
+                                                currentGameState =
+                                                    gameStates.FINISHEDDEAL;
+                                                buttonsToUse =
+                                                    finishedDealButtons;
+                                                didWinLastTwoGames =
+                                                    didWinLastGame;
+                                                didWinLastGame = playerIsOnTop;
+                                                points["pp"] = points["player"];
+                                                points["po"] =
+                                                    points["opponent"];
+                                                if (playerIsOnTop) {
+                                                    points["player"] +=
+                                                        calculateDealPoints();
+                                                } else {
+                                                    points["opponent"] +=
+                                                        calculateDealPoints();
+                                                }
+                                                drawBoard();
+                                            }
+                                        },
+                                        Math.random() * 2000 + 500,
+                                    );
                                 }
-                            } else if (currentGameState === gameStates.TRICKRESPONSE) {
-                                const opponentIsOnTop = analyzeTrick(currentTrick[0], currentTrick[1]);
-                                tricks.push(currentTrick)
+                            } else if (
+                                currentGameState === gameStates.TRICKRESPONSE
+                            ) {
+                                const opponentIsOnTop = analyzeTrick(
+                                    currentTrick[0],
+                                    currentTrick[1],
+                                );
+                                tricks.push(currentTrick);
                                 currentTrick = [];
                                 if (tricks.length < 5) {
                                     currentGameState = gameStates.TRICKSTART;
                                     if (!opponentIsOnTop) {
                                         isMyTurn = true;
                                         turnText.innerText = `${isMyTurn ? "Your Turn" : "Opponent's Turn"}`;
-                                        turnText.style.color = isMyTurn ? "green" : "white";
+                                        turnText.style.color = isMyTurn
+                                            ? "green"
+                                            : "white";
                                     } else {
                                         isMyTurn = false;
                                         turnText.innerText = `${isMyTurn ? "Your Turn" : "Opponent's Turn"}`;
-                                        turnText.style.color = isMyTurn ? "green" : "white";
+                                        turnText.style.color = isMyTurn
+                                            ? "green"
+                                            : "white";
                                         if (room == null) {
-                                            setTimeout(() => {
-                                                const [playedCard] = opponentHand.splice(Math.floor(Math.max(Math.random() - 0.1) * opponentHand.length), 1);
-                                                playedCards["opponent"].push(playedCard);
-                                                currentTrick.push(playedCard);
-                                                drawBoard();
-                                                currentGameState = gameStates.TRICKRESPONSE;
-                                                isMyTurn = !isMyTurn;
-                                                turnText.innerText = `${isMyTurn ? "Your Turn" : "Opponent's Turn"}`;
-                                                turnText.style.color = isMyTurn ? "green" : "white";
-                                            }, Math.random() * 2000 + 500)
+                                            setTimeout(
+                                                () => {
+                                                    const [playedCard] =
+                                                        opponentHand.splice(
+                                                            Math.floor(
+                                                                Math.max(
+                                                                    Math.random() -
+                                                                        0.1,
+                                                                ) *
+                                                                    opponentHand.length,
+                                                            ),
+                                                            1,
+                                                        );
+                                                    playedCards[
+                                                        "opponent"
+                                                    ].push(playedCard);
+                                                    currentTrick.push(
+                                                        playedCard,
+                                                    );
+                                                    drawBoard();
+                                                    currentGameState =
+                                                        gameStates.TRICKRESPONSE;
+                                                    isMyTurn = !isMyTurn;
+                                                    turnText.innerText = `${isMyTurn ? "Your Turn" : "Opponent's Turn"}`;
+                                                    turnText.style.color =
+                                                        isMyTurn
+                                                            ? "green"
+                                                            : "white";
+                                                },
+                                                Math.random() * 2000 + 500,
+                                            );
                                         }
                                     }
                                 } else {
@@ -415,27 +572,50 @@
                                     buttonsToUse = finishedDealButtons;
                                     didWinLastTwoGames = didWinLastGame;
                                     didWinLastGame = !opponentIsOnTop;
+                                    points["pp"] = points["player"];
+                                    points["po"] =
+                                        points["opponent"];
                                     if (opponentIsOnTop) {
-                                        points["opponent"] += calculateDealPoints();
+                                        points["opponent"] +=
+                                            calculateDealPoints();
                                     } else {
-                                        points["player"] += calculateDealPoints();
+                                        points["player"] +=
+                                            calculateDealPoints();
                                     }
                                     drawBoard();
                                 }
                             }
                         }
-                    } else if (y > cardWidth * heightScaleFactor + 20 && y < cardWidth * heightScaleFactor + fontHeight + 50) {
-                        if (currentGameState === gameStates.PREGAME) buttonsToUse = startButtons;
-                        else if (currentGameState === gameStates.TRICKSTART || currentGameState === gameStates.TRICKRESPONSE) buttonsToUse = playingButtons;
-                        const buttonSpaceTaken = buttonsToUse.reduce((acc, curr, i) => {
-                            acc += measureButtonWidth(curr) + 20;
-                            return acc;
-                        }, 0) - 20;
+                    } else if (
+                        y > cardWidth * heightScaleFactor + 20 &&
+                        y < cardWidth * heightScaleFactor + fontHeight + 50
+                    ) {
+                        if (currentGameState === gameStates.PREGAME)
+                            buttonsToUse = startButtons;
+                        else if (
+                            currentGameState === gameStates.TRICKSTART ||
+                            currentGameState === gameStates.TRICKRESPONSE
+                        )
+                            buttonsToUse = playingButtons;
+                        const buttonSpaceTaken =
+                            buttonsToUse.reduce((acc, curr, i) => {
+                                acc += measureButtonWidth(curr) + 20;
+                                return acc;
+                            }, 0) - 20;
                         const remainingSpace = canvas.width - buttonSpaceTaken;
-                        if (x > remainingSpace / 2 && x < remainingSpace / 2 + buttonSpaceTaken) {
+                        if (
+                            x > remainingSpace / 2 &&
+                            x < remainingSpace / 2 + buttonSpaceTaken
+                        ) {
                             let widthSum = 0;
                             for (let button of buttonsToUse) {
-                                if (x > remainingSpace / 2 + widthSum && x < remainingSpace / 2 + widthSum + measureButtonWidth(button)) {
+                                if (
+                                    x > remainingSpace / 2 + widthSum &&
+                                    x <
+                                        remainingSpace / 2 +
+                                            widthSum +
+                                            measureButtonWidth(button)
+                                ) {
                                     handleButtonClick(button);
                                 }
                                 widthSum += measureButtonWidth(button) + 20;
@@ -457,14 +637,22 @@
                             if (playerHand.length < 5) return false;
                             const isNoTen = hasNoTen(playerHand);
                             if (!isNoTen) return false;
-                            
+
                             // remove no ten
-                            playerHand.splice(Math.floor(Math.random() * (playerHand.length - 1)), 1);
+                            playerHand.splice(
+                                Math.floor(
+                                    Math.random() * (playerHand.length - 1),
+                                ),
+                                1,
+                            );
                             drawBoard();
                             const intervalId = setInterval(() => {
                                 if (playerHand.length < 4) {
-                                    if (deck.length < 2) deck = generateShuffledSparDeck();
-                                    playerHand.push(...[deck.pop(), deck.pop()]);
+                                    if (deck.length < 2)
+                                        deck = generateShuffledSparDeck();
+                                    playerHand.push(
+                                        ...[deck.pop(), deck.pop()],
+                                    );
                                     if (room != null) {
                                         updateState();
                                         ws.send(
@@ -474,8 +662,8 @@
                                                 body: {
                                                     event: "updatedeck",
                                                     deck: deck,
-                                                }
-                                            })
+                                                },
+                                            }),
                                         );
                                     }
 
@@ -485,12 +673,25 @@
                                 }
                                 playerHand.pop();
                                 drawBoard();
-                            }, 600)
+                            }, 600);
                             break;
                         }
                         case "No Be Game": {
-                            if (!isFairGame([...playerHand, ...playedCards["player"]], [...opponentHand, ...playedCards["opponent"]])) return false;
+                            if (
+                                !isFairGame(
+                                    [...playerHand, ...playedCards["player"]],
+                                    [
+                                        ...opponentHand,
+                                        ...playedCards["opponent"],
+                                    ],
+                                ) &&
+                                !hasHands(playedCards["player"]) &&
+                                !hasHands(playedCards["opponent"])
+                            )
+                                return false;
                             nextRound();
+                            points["player"] = points["pp"];
+                            points["opponent"] = points["po"];
                             break;
                         }
                         case "Hands": {
@@ -498,12 +699,20 @@
                             const isHands = hasHands(playerHand);
                             if (!isHands) return false;
 
-                            playerHand.splice(Math.floor(Math.random() * (playerHand.length - 1)), 1);
+                            playerHand.splice(
+                                Math.floor(
+                                    Math.random() * (playerHand.length - 1),
+                                ),
+                                1,
+                            );
                             drawBoard();
                             const intervalId = setInterval(() => {
                                 if (playerHand.length < 4) {
-                                    if (deck.length < 2) deck = generateShuffledSparDeck();
-                                    playerHand.push(...[deck.pop(), deck.pop()]);
+                                    if (deck.length < 2)
+                                        deck = generateShuffledSparDeck();
+                                    playerHand.push(
+                                        ...[deck.pop(), deck.pop()],
+                                    );
                                     if (room != null) {
                                         updateState();
                                         ws.send(
@@ -513,8 +722,8 @@
                                                 body: {
                                                     event: "updatedeck",
                                                     deck: deck,
-                                                }
-                                            })
+                                                },
+                                            }),
                                         );
                                     }
 
@@ -532,16 +741,25 @@
                             if (playerHand < 5) return false;
                             const isTripleSix = hasTripleSix(playerHand);
                             if (!isTripleSix) return false;
-                            
-                            const sixCards = playerHand.filter((card) => getNumber(card) === 6);
-                            let randomIndex = Math.floor(Math.max(0, Math.random() - 0.1)) * sixCards.length;
+
+                            const sixCards = playerHand.filter(
+                                (card) => getNumber(card) === 6,
+                            );
+                            let randomIndex =
+                                Math.floor(Math.max(0, Math.random() - 0.1)) *
+                                sixCards.length;
                             const firstSix = sixCards.splice(randomIndex, 1)[0];
-                            playerHand = playerHand.filter((card) => card !== firstSix);
+                            playerHand = playerHand.filter(
+                                (card) => card !== firstSix,
+                            );
                             drawBoard();
                             const intervalId = setInterval(() => {
                                 if (playerHand.length < 4) {
-                                    if (deck.length < 2) deck = generateShuffledSparDeck();
-                                    playerHand.push(...[deck.pop(), deck.pop()]);
+                                    if (deck.length < 2)
+                                        deck = generateShuffledSparDeck();
+                                    playerHand.push(
+                                        ...[deck.pop(), deck.pop()],
+                                    );
                                     if (room != null) {
                                         updateState();
                                         ws.send(
@@ -551,8 +769,8 @@
                                                 body: {
                                                     event: "updatedeck",
                                                     deck: deck,
-                                                }
-                                            })
+                                                },
+                                            }),
                                         );
                                     }
 
@@ -561,9 +779,17 @@
                                     return;
                                 }
 
-                                let randomIndex = Math.floor(Math.max(0, Math.random() - 0.1)) * sixCards.length;
-                                let nextSix = sixCards.splice(randomIndex, 1)[0];
-                                playerHand = playerHand.filter((card) => card !== nextSix);
+                                let randomIndex =
+                                    Math.floor(
+                                        Math.max(0, Math.random() - 0.1),
+                                    ) * sixCards.length;
+                                let nextSix = sixCards.splice(
+                                    randomIndex,
+                                    1,
+                                )[0];
+                                playerHand = playerHand.filter(
+                                    (card) => card !== nextSix,
+                                );
                                 drawBoard();
                             }, 600);
                             break;
@@ -573,7 +799,12 @@
                                 alert("Cannot start with one person in room");
                                 break;
                             }
-                            if (room == null || (currentGameState != gameStates.TRICKSTART && currentGameState != gameStates.TRICKRESPONSE)) {
+                            if (
+                                room == null ||
+                                (currentGameState != gameStates.TRICKSTART &&
+                                    currentGameState !=
+                                        gameStates.TRICKRESPONSE)
+                            ) {
                                 if (gameStartedBeforeReady == true) {
                                     currentGameState = gameStates.TRICKRESPONSE;
                                     gameStartedBeforeReady = false;
@@ -583,34 +814,58 @@
                             }
                             buttonsToUse = playingButtons;
                             if (didWinLastGame === true && room === null) {
-                                setTimeout(() => {
-                                    const [playedCard] = opponentHand.splice(Math.floor(Math.max(0, (Math.random() - 0.1)) * opponentHand.length), 1);
-                                    playedCards["opponent"].push(playedCard);
-                                    currentTrick.push(playedCard);
-                                    drawBoard();
-                                    currentGameState = gameStates.TRICKRESPONSE;
-                                    isMyTurn = true;
-                                    turnText.innerText = `${isMyTurn ? "Your Turn" : "Opponent's Turn"}`;
-                                    turnText.style.color = isMyTurn ? "green" : "white";
-                                }, Math.random() * 2000 + 500)
+                                setTimeout(
+                                    () => {
+                                        const [playedCard] =
+                                            opponentHand.splice(
+                                                Math.floor(
+                                                    Math.max(
+                                                        0,
+                                                        Math.random() - 0.1,
+                                                    ) * opponentHand.length,
+                                                ),
+                                                1,
+                                            );
+                                        playedCards["opponent"].push(
+                                            playedCard,
+                                        );
+                                        currentTrick.push(playedCard);
+                                        drawBoard();
+                                        currentGameState =
+                                            gameStates.TRICKRESPONSE;
+                                        isMyTurn = true;
+                                        turnText.innerText = `${isMyTurn ? "Your Turn" : "Opponent's Turn"}`;
+                                        turnText.style.color = isMyTurn
+                                            ? "green"
+                                            : "white";
+                                    },
+                                    Math.random() * 2000 + 500,
+                                );
                             }
 
                             drawBoard();
                             break;
                         }
                         case "Next Round": {
+                            if (!canClickNextRound) break;
                             nextRound();
                             break;
                         }
                         case "Gba": {
                             const didGba = evaluateGba();
+                            console.log(didGba);
                             if (didGba.isGba && didGba.playerDidGba) {
+                                points["player"] = points["pp"];
+                                points["opponent"] = points["po"];
                                 points["player"] -= 3;
                             } else if (didGba.isGba && !didGba.playerDidGba) {
+                                points["player"] = points["pp"];
+                                points["opponent"] = points["po"];
                                 points["opponent"] -= 3;
                             } else {
                                 points["player"] -= 1;
                             }
+                            if (room != null) sendRevert(didGba.isGba, didGba.playerDidGba)
                             nextRound();
                             break;
                         }
@@ -618,29 +873,63 @@
                     return false;
                 }
 
+                function sendRevert(gba, senderDid) {
+                    ws.send(JSON.stringify({
+                        event: "broadcastroom",
+                        roomCode: room.roomCode,
+                        body: {
+                            event: "revert",
+                            isGba: gba,
+                            senderDid: senderDid
+                        }
+                    }))
+                }
+
                 function updateState() {
                     if (room == null) return;
                     ws.send(
-                    JSON.stringify({
-                        event: "updatestate",
-                        roomCode: room.roomCode,
-                        gameState: {
-                            deck: deck,
-                            players: room.players,
-                            currentPlayer: isMyTurn || room.numberOfPlayers ? uniqueID : room.players.filter((p) => p.id != uniqueID)[0].id,
-                            state: gameStartedBeforeReady ? gameStates.TRICKRESPONSE : currentGameState,
-                        },
-                        isTurn: isMyTurn,
-                    }));
+                        JSON.stringify({
+                            event: "updatestate",
+                            roomCode: room.roomCode,
+                            gameState: {
+                                deck: deck,
+                                players: room.players,
+                                currentPlayer:
+                                    isMyTurn || room.numberOfPlayers
+                                        ? uniqueID
+                                        : room.players.filter(
+                                              (p) => p.id != uniqueID,
+                                          )[0].id,
+                                state: gameStartedBeforeReady
+                                    ? gameStates.TRICKRESPONSE
+                                    : currentGameState,
+                            },
+                            isTurn: isMyTurn,
+                        }),
+                    );
                 }
 
                 function nextRound(isAfresh) {
                     if (deck.length < 10 || isAfresh === true) {
                         deck = generateShuffledSparDeck();
                     }
-                    playerHand = [deck.pop(),deck.pop(),deck.pop(),deck.pop(),deck.pop(),];
+                    points["pp"] = points["player"];
+                    points["po"] = points["opponent"];
+                    playerHand = [
+                        deck.pop(),
+                        deck.pop(),
+                        deck.pop(),
+                        deck.pop(),
+                        deck.pop(),
+                    ];
                     if (room == null) {
-                        opponentHand = [deck.pop(),deck.pop(),deck.pop(),deck.pop(),deck.pop(),];
+                        opponentHand = [
+                            deck.pop(),
+                            deck.pop(),
+                            deck.pop(),
+                            deck.pop(),
+                            deck.pop(),
+                        ];
                     }
                     playedCards["player"] = [];
                     playedCards["opponent"] = [];
@@ -652,16 +941,17 @@
 
                     if (room != null) {
                         updateState();
-                        ws.send(JSON.stringify(
-                            {
+                        canClickNextRound = false;
+                        ws.send(
+                            JSON.stringify({
                                 event: "broadcastroom",
                                 roomCode: room.roomCode,
                                 body: {
                                     event: "nextround",
                                     deck: deck,
-                                }
-                            }
-                        ))
+                                },
+                            }),
+                        );
                     }
                 }
 
@@ -672,24 +962,28 @@
                     let pot = !didWinLastTwoGames;
                     let caller, response;
 
+                    console.log(tricks, ph, oh);
+
                     for (let trick of tricks) {
                         caller = pot ? [...ph] : [...oh];
                         response = !pot ? [...ph] : [...oh];
 
                         caller = caller.filter((card) => card !== trick[0]);
                         if (getSuite(trick[0]) !== getSuite(trick[1])) {
-                            let result = response.find((card) => getSuite(card) === getSuite(trick[0]));
+                            let result = response.find(
+                                (card) => getSuite(card) === getSuite(trick[0]),
+                            );
                             if (result !== undefined) {
                                 if (pot) {
                                     return {
-                                         isGba: true,
-                                         playerDidGba: false,
-                                    }
+                                        isGba: true,
+                                        playerDidGba: false,
+                                    };
                                 } else {
                                     return {
                                         isGba: true,
                                         playerDidGba: true,
-                                    }
+                                    };
                                 }
                             }
                         }
@@ -710,14 +1004,12 @@
                         } else {
                             pot = !callerWonTrick;
                         }
-
                     }
 
                     return {
                         isGba: false,
                         playerDidGba: false,
-                    }
-
+                    };
                 }
 
                 function calculateDealPoints() {
@@ -727,12 +1019,20 @@
                     handToUse.reverse();
                     let points = 0;
                     let lastTrick = tricks[tricks.length - 1];
-                    if (getNumber(handToUse[0]) > 7 || lastTrick[1] === handToUse[0]) {
+                    if (
+                        getNumber(handToUse[0]) > 7 ||
+                        lastTrick[1] === handToUse[0]
+                    ) {
                         points = 1;
                     } else {
                         let lastCard = null;
                         for (let card of handToUse) {
-                            if (getNumber(card) > 7 || lastCard != null && getSuite(lastCard) === getSuite(card)) break;
+                            if (
+                                getNumber(card) > 7 ||
+                                (lastCard != null &&
+                                    getSuite(lastCard) === getSuite(card))
+                            )
+                                break;
                             if (getNumber(card) == 7) points += 2;
                             else if (getNumber(card) == 6) points += 3;
                             lastCard = card;
@@ -751,7 +1051,6 @@
                     return shuffled;
                 }
 
-
                 function drawCard(x, y, suit, number) {
                     let color = "";
                     if (suit == "hearts" || suit == "diamonds") {
@@ -762,7 +1061,7 @@
                     context.beginPath();
                     context.fillStyle = "white";
                     const cardHeight = heightScaleFactor * cardWidth;
-                    
+
                     context.fillRect(x, y, cardWidth, cardHeight);
                     context.strokeStyle = "black";
                     context.strokeRect(x, y, cardWidth, cardHeight);
@@ -801,11 +1100,21 @@
                     }
                     const textWidth = context.measureText(numText).width;
 
-                    context.fillText(numText, x + 0.1 * cardWidth - (textWidth * scale) / 2, y + 0.161 * cardHeight - (fontHeight / 2), textWidth * scale);
+                    context.fillText(
+                        numText,
+                        x + 0.1 * cardWidth - (textWidth * scale) / 2,
+                        y + 0.161 * cardHeight - fontHeight / 2,
+                        textWidth * scale,
+                    );
                     context.save();
                     context.translate(x + cardWidth, y + cardHeight);
                     context.scale(-1, -1);
-                    context.fillText(numText, 0.1 * cardWidth - (textWidth * scale) / 2, 0.161 * cardHeight - (fontHeight / 2), textWidth * scale);
+                    context.fillText(
+                        numText,
+                        0.1 * cardWidth - (textWidth * scale) / 2,
+                        0.161 * cardHeight - fontHeight / 2,
+                        textWidth * scale,
+                    );
                     context.restore();
 
                     // draw card rectangle
@@ -813,11 +1122,23 @@
                     const smallScale = smallHeight / cardImages[suit].height;
                     const smallWidth = cardImages[suit].width * smallScale;
                     // small suit
-                    context.drawImage(cardImages[suit], x + 0.1 * cardWidth - (smallWidth / 2), y + 0.2674 * cardHeight - (smallHeight / 2), smallWidth, smallHeight);
+                    context.drawImage(
+                        cardImages[suit],
+                        x + 0.1 * cardWidth - smallWidth / 2,
+                        y + 0.2674 * cardHeight - smallHeight / 2,
+                        smallWidth,
+                        smallHeight,
+                    );
                     context.save();
                     context.translate(x + cardWidth, y + cardHeight);
                     context.scale(-1, -1);
-                    context.drawImage(cardImages[suit], 0.1 * cardWidth - (smallWidth / 2), 0.2674 * cardHeight - (smallHeight / 2), smallWidth, smallHeight);
+                    context.drawImage(
+                        cardImages[suit],
+                        0.1 * cardWidth - smallWidth / 2,
+                        0.2674 * cardHeight - smallHeight / 2,
+                        smallWidth,
+                        smallHeight,
+                    );
                     context.restore();
 
                     const bigWidth = cardWidth * 0.186;
@@ -827,30 +1148,57 @@
                     if (number <= 10) {
                         for (let position of numberPositions[number]) {
                             if (position[2] !== -1) {
-                                context.drawImage(cardImages[suit], x + position[0] * cardWidth - (bigWidth / 2), y + position[1] * cardHeight - (bigHeight / 2), bigWidth, bigHeight);
+                                context.drawImage(
+                                    cardImages[suit],
+                                    x + position[0] * cardWidth - bigWidth / 2,
+                                    y +
+                                        position[1] * cardHeight -
+                                        bigHeight / 2,
+                                    bigWidth,
+                                    bigHeight,
+                                );
                             } else {
                                 context.save();
-                                context.translate(x + cardWidth, y + cardHeight);
+                                context.translate(
+                                    x + cardWidth,
+                                    y + cardHeight,
+                                );
                                 context.scale(-1, -1);
                                 // context.drawImage(cardImages[suit], position[0] * cardWidth - (bigWidth / 2), position[1] * cardHeight - (bigHeight / 2), bigWidth, bigHeight);
-                                context.drawImage(cardImages[suit], position[0] * cardWidth - (bigWidth / 2), position[1] * cardHeight - (bigHeight / 2), bigWidth, bigHeight);
+                                context.drawImage(
+                                    cardImages[suit],
+                                    position[0] * cardWidth - bigWidth / 2,
+                                    position[1] * cardHeight - bigHeight / 2,
+                                    bigWidth,
+                                    bigHeight,
+                                );
                                 context.restore();
                             }
                         }
                     } else {
                         const pictureWidth = cardWidth * 0.6;
                         const pictureHeight = cardHeight * 0.7907;
-                        context.drawImage(cardImages[`${pictureName}_${color}`], x + cardWidth/2 - pictureWidth/2, y + cardHeight/2 - pictureHeight/2, pictureWidth, pictureHeight);
+                        context.drawImage(
+                            cardImages[`${pictureName}_${color}`],
+                            x + cardWidth / 2 - pictureWidth / 2,
+                            y + cardHeight / 2 - pictureHeight / 2,
+                            pictureWidth,
+                            pictureHeight,
+                        );
                     }
                     context.closePath();
                 }
 
                 function getSuite(shortName) {
                     switch (shortName[0]) {
-                        case "d": return "diamonds";
-                        case "c": return "clubs";
-                        case "h": return "hearts";
-                        case "s": return "spades";
+                        case "d":
+                            return "diamonds";
+                        case "c":
+                            return "clubs";
+                        case "h":
+                            return "hearts";
+                        case "s":
+                            return "spades";
                     }
                 }
 
@@ -869,7 +1217,8 @@
                 // does the player have all cards of the same suite
                 function hasHands(hand) {
                     for (let i = 0; i < 4; i++) {
-                        if (getSuite(hand[i]) !== getSuite(hand[i+1])) return false;
+                        if (getSuite(hand[i]) !== getSuite(hand[i + 1]))
+                            return false;
                     }
                     return true;
                 }
@@ -887,7 +1236,8 @@
                 function isFairGame(hand1, hand2) {
                     for (let card1 of hand1) {
                         for (let card2 of hand2) {
-                            if (getSuite(card1) === getSuite(card2)) return true;
+                            if (getSuite(card1) === getSuite(card2))
+                                return true;
                         }
                     }
                     return false;
@@ -895,7 +1245,12 @@
 
                 function drawPlayedHand(x, y, hand) {
                     for (let i = 0; i < hand.length; i++) {
-                        drawCard(x + i * 0.2 * cardWidth, y, getSuite(hand[i]), getNumber(hand[i]));
+                        drawCard(
+                            x + i * 0.2 * cardWidth,
+                            y,
+                            getSuite(hand[i]),
+                            getNumber(hand[i]),
+                        );
                     }
                 }
 
@@ -907,15 +1262,26 @@
                 function drawButton(x, y, text) {
                     context.save();
                     const padding = 20;
-                    context.textBaseline = "top"
+                    context.textBaseline = "top";
                     context.font = `${fontHeight}px sans-serif`;
                     context.fillStyle = "white";
                     context.strokeStyle = "black";
 
-                    const buttonWidth  = context.measureText(text).width + padding * 2;
+                    const buttonWidth =
+                        context.measureText(text).width + padding * 2;
 
-                    context.fillRect(x, y, buttonWidth, fontHeight + padding * 2);
-                    context.strokeRect(x, y, buttonWidth, fontHeight + padding * 2);
+                    context.fillRect(
+                        x,
+                        y,
+                        buttonWidth,
+                        fontHeight + padding * 2,
+                    );
+                    context.strokeRect(
+                        x,
+                        y,
+                        buttonWidth,
+                        fontHeight + padding * 2,
+                    );
                     context.fillStyle = "black";
                     context.fillText(text, x + padding, y + padding);
                     context.restore();
@@ -928,46 +1294,92 @@
                     context.fillStyle = "green";
                     context.fillRect(0, 0, canvas.width, canvas.height);
 
-                    let remainingButtonSpace = canvas.width - buttonsToUse.reduce((acc, curr, i) => {
-                        acc += measureButtonWidth(curr) + 20;
-                        return acc;
-                    }, 0);
+                    let remainingButtonSpace =
+                        canvas.width -
+                        buttonsToUse.reduce((acc, curr, i) => {
+                            acc += measureButtonWidth(curr) + 20;
+                            return acc;
+                        }, 0);
 
-                    // draw game buttons 
+                    // draw game buttons
                     let widthSum = 0;
                     for (let i = 0; i < buttonsToUse.length; i++) {
-                        widthSum += drawButton(remainingButtonSpace / 2 + widthSum, cardWidth * heightScaleFactor + 20, buttonsToUse[i]) + 20;
+                        widthSum +=
+                            drawButton(
+                                remainingButtonSpace / 2 + widthSum,
+                                cardWidth * heightScaleFactor + 20,
+                                buttonsToUse[i],
+                            ) + 20;
                     }
 
                     // draw unplayed cards
                     const spaceLeft = (5 - playerHand.length) * cardWidth;
                     for (let i = 0; i < playerHand.length; i++) {
-                        drawCard(i * canvas.width/5 + spaceLeft/2, 0, getSuite(playerHand[i]), getNumber(playerHand[i]));
+                        drawCard(
+                            (i * canvas.width) / 5 + spaceLeft / 2,
+                            0,
+                            getSuite(playerHand[i]),
+                            getNumber(playerHand[i]),
+                        );
                     }
-                    
+
                     // draw played cards
-                    const playedCardPositionY = cardWidth * heightScaleFactor + fontHeight + 100;
+                    const playedCardPositionY =
+                        cardWidth * heightScaleFactor + fontHeight + 100;
                     // i used 1.8 because it'll show 4 * 0.2 of the last 4 cards and the whole last card
-                    drawPlayedHand(canvas.width / 2 - 1.8 * cardWidth - 40, playedCardPositionY, playedCards["player"]);
-                    drawPlayedHand(canvas.width / 2 + 40, playedCardPositionY, playedCards["opponent"]);
+                    drawPlayedHand(
+                        canvas.width / 2 - 1.8 * cardWidth - 40,
+                        playedCardPositionY,
+                        playedCards["player"],
+                    );
+                    drawPlayedHand(
+                        canvas.width / 2 + 40,
+                        playedCardPositionY,
+                        playedCards["opponent"],
+                    );
 
                     // draw  scores
                     context.fillStyle = "white";
-                    context.font = "25px sans-serif"
+                    context.font = "25px sans-serif";
                     const yourScoreDim = context.measureText("Your Score");
                     const oppScoreDim = context.measureText("Opponent's Score");
 
-                    context.fillText("Your Score", canvas.width / 4 - (yourScoreDim.width / 2), playedCardPositionY + cardWidth * heightScaleFactor + 50)
-                    context.fillText("Opponent's Score", canvas.width * 3 / 4 - (oppScoreDim.width / 2), playedCardPositionY + cardWidth * heightScaleFactor + 50)
+                    context.fillText(
+                        "Your Score",
+                        canvas.width / 4 - yourScoreDim.width / 2,
+                        playedCardPositionY +
+                            cardWidth * heightScaleFactor +
+                            50,
+                    );
+                    context.fillText(
+                        "Opponent's Score",
+                        (canvas.width * 3) / 4 - oppScoreDim.width / 2,
+                        playedCardPositionY +
+                            cardWidth * heightScaleFactor +
+                            50,
+                    );
 
-                    
                     context.font = "50px sans-serif";
                     const pPtsText = `${points["player"]}`;
                     const oPtsText = `${points["opponent"]}`;
-                    context.fillText(pPtsText, canvas.width / 4 - context.measureText(pPtsText).width / 2, playedCardPositionY + cardWidth * heightScaleFactor + 105);
-                    context.fillText(oPtsText, canvas.width * 3 / 4 - context.measureText(oPtsText).width / 2, playedCardPositionY + cardWidth * heightScaleFactor + 105);
+                    context.fillText(
+                        pPtsText,
+                        canvas.width / 4 -
+                            context.measureText(pPtsText).width / 2,
+                        playedCardPositionY +
+                            cardWidth * heightScaleFactor +
+                            105,
+                    );
+                    context.fillText(
+                        oPtsText,
+                        (canvas.width * 3) / 4 -
+                            context.measureText(oPtsText).width / 2,
+                        playedCardPositionY +
+                            cardWidth * heightScaleFactor +
+                            105,
+                    );
                     context.restore();
-                } 
+                }
 
                 restartButton.addEventListener("click", () => {
                     if (isRoomLeader && room != null) return;
@@ -982,14 +1394,16 @@
                     didWinLastTwoGames = didWinLastGame;
                     nextRound(true);
                     if (room != null) {
-                        ws.send(JSON.stringify({
-                            event: "broadcastroom",
-                            roomCode: room.roomCode,
-                            body: {
-                                event: "restart",
-                                isLeaderTurn: isMyTurn,
-                            }
-                        }))
+                        ws.send(
+                            JSON.stringify({
+                                event: "broadcastroom",
+                                roomCode: room.roomCode,
+                                body: {
+                                    event: "restart",
+                                    isLeaderTurn: isMyTurn,
+                                },
+                            }),
+                        );
                     }
                 });
 
@@ -1006,14 +1420,14 @@
                         }),
                     );
                     ws.send(
-                        JSON.stringify(
-                            {
-                                event: "leaveroom",
-                            }
-                        )
-                    )
+                        JSON.stringify({
+                            event: "leaveroom",
+                        }),
+                    );
 
                     isRoomLeader = false;
+                    clearTimeout(nextRoundTimerID);
+                    canClickNextRound = true;
 
                     opponentNames = [];
                     currentGameState = gameStates.PREGAME;
@@ -1023,20 +1437,21 @@
                     currentPlayer = 0;
                     turnText.innerText = `${isMyTurn ? "Your Turn" : "Opponent's Turn"}`;
                     turnText.style.color = isMyTurn ? "green" : "white";
-                    leaderIcon.innerText = "🚫"
+                    leaderIcon.innerText = "🚫";
                     didWinLastGame = !isMyTurn;
                     didWinLastTwoGames = didWinLastGame;
                     points = {
                         player: 0,
                         opponent: 0,
-                    }
+                        pp: 0,
+                        po: 0,
+                    };
                     nextRound(true);
-                    
                 }
 
                 leaveButton.addEventListener("click", () => {
                     leaveRoom();
-                })
+                });
 
                 ws.addEventListener("open", () => {
                     ws.addEventListener("message", (e) => {
@@ -1051,22 +1466,36 @@
                                 numberOfPlayers: data["numberOfPlayers"],
                                 players: [
                                     ...data["gameState"].players,
-                                    {id: data["id"], displayName: localStorage.getItem("displayName")}
+                                    {
+                                        id: data["id"],
+                                        displayName:
+                                            localStorage.getItem("displayName"),
+                                    },
                                 ],
                             };
 
                             // ui stuff
                             isConnectedText.innerText = "Connected";
                             isConnectedText.style.color = "green";
-                            opponentNames = data["opponentNames"]
+                            opponentNames = data["opponentNames"];
                             faceOffText.innerText = `You vs ${data["opponentNames"].length == 0 ? "Nobody" : data["opponentNames"][0]}`;
-                            turnText.innerText = data["isTurn"] ? "Your Turn" : "Opponent's Turn";
-                            turnText.style.color = data["isTurn"] ? "green" : "white";
+                            turnText.innerText = data["isTurn"]
+                                ? "Your Turn"
+                                : "Opponent's Turn";
+                            turnText.style.color = data["isTurn"]
+                                ? "green"
+                                : "white";
 
                             // get our id and take our cards
                             uniqueID = data["id"];
                             deck = data["gameState"].deck;
-                            playerHand = [deck.pop(), deck.pop(), deck.pop(), deck.pop(), deck.pop()];
+                            playerHand = [
+                                deck.pop(),
+                                deck.pop(),
+                                deck.pop(),
+                                deck.pop(),
+                                deck.pop(),
+                            ];
                             isRoomLeader = data["isRoomLeader"];
                             if (isRoomLeader) {
                                 leaderIcon.innerText = "👑";
@@ -1077,6 +1506,8 @@
                             } else {
                                 isMyTurn = data["isTurn"];
                             }
+                            didWinLastGame = !isMyTurn;
+                            didWinLastTwoGames = didWinLastGame;
 
                             // update the state of the game with the new deck and isMyTurn
                             ws.send(
@@ -1087,10 +1518,16 @@
                                         ...data["gameState"],
                                         deck: deck,
                                         players: room.players,
-                                        currentPlayer: isMyTurn || data["numberOfPlayers"] == 1 ? uniqueID : room.players.filter((p) => p.id != uniqueID)[0].id
+                                        currentPlayer:
+                                            isMyTurn ||
+                                            data["numberOfPlayers"] == 1
+                                                ? uniqueID
+                                                : room.players.filter(
+                                                      (p) => p.id != uniqueID,
+                                                  )[0].id,
                                     },
                                     isTurn: isMyTurn,
-                                })
+                                }),
                             );
 
                             // update everyone on the new deck
@@ -1101,13 +1538,12 @@
                                     body: {
                                         event: "updatedeck",
                                         deck: deck,
-                                    }
-                                })
-                            )
+                                    },
+                                }),
+                            );
                             drawBoard();
                         } else if (data["event"] == "roomnotconnected") {
                             alert(`Could not connect: ${data["reason"]}`);
-
                         } else if (data["event"] === "move") {
                             if (currentGameState == gameStates.PREGAME) {
                                 gameStartedBeforeReady = true;
@@ -1123,11 +1559,18 @@
                                 currentGameState = gameStates.TRICKRESPONSE;
                                 isMyTurn = !isMyTurn;
                                 turnText.innerText = `${isMyTurn ? "Your Turn" : "Opponent's Turn"}`;
-                                turnText.style.color = isMyTurn ? "green" : "white";
-                            } else if (currentGameState === gameStates.TRICKRESPONSE) {
+                                turnText.style.color = isMyTurn
+                                    ? "green"
+                                    : "white";
+                            } else if (
+                                currentGameState === gameStates.TRICKRESPONSE
+                            ) {
                                 tricks.push(currentTrick);
-                                
-                                const playerIsOnTop = analyzeTrick(currentTrick[0], currentTrick[1]);
+
+                                const playerIsOnTop = analyzeTrick(
+                                    currentTrick[0],
+                                    currentTrick[1],
+                                );
                                 currentTrick = [];
                                 if (tricks.length < 5) {
                                     currentGameState = gameStates.TRICKSTART;
@@ -1137,15 +1580,20 @@
                                         isMyTurn = false;
                                     }
                                     turnText.innerText = `${isMyTurn ? "Your Turn" : "Opponent's Turn"}`;
-                                    turnText.style.color = isMyTurn ? "green" : "white";
+                                    turnText.style.color = isMyTurn
+                                        ? "green"
+                                        : "white";
                                 } else {
                                     currentGameState = gameStates.FINISHEDDEAL;
                                     buttonsToUse = finishedDealButtons;
                                     didWinLastTwoGames = didWinLastGame;
-                                    didWinLastGame = playerIsOnTop; if (playerIsOnTop) {
-                                        points["player"] += calculateDealPoints();
+                                    didWinLastGame = playerIsOnTop;
+                                    if (playerIsOnTop) {
+                                        points["player"] +=
+                                            calculateDealPoints();
                                     } else {
-                                        points["opponent"] += calculateDealPoints();
+                                        points["opponent"] +=
+                                            calculateDealPoints();
                                     }
                                     drawBoard();
                                 }
@@ -1154,13 +1602,22 @@
                             // update the versus text
                             faceOffText.innerText = `You vs ${data["displayName"]}`;
                             opponentNames.push(data["displayName"]);
-                            room.players.push({id: data["id"], displayName: data["displayName"]});
+                            room.players.push({
+                                id: data["id"],
+                                displayName: data["displayName"],
+                            });
                             room.numberOfPlayers++;
                         } else if (data["event"] == "updatedeck") {
                             deck = data["deck"];
                         } else if (data["event"] == "nextround") {
                             deck = data["deck"];
-                            playerHand = [deck.pop(),deck.pop(),deck.pop(),deck.pop(),deck.pop(),];
+                            playerHand = [
+                                deck.pop(),
+                                deck.pop(),
+                                deck.pop(),
+                                deck.pop(),
+                                deck.pop(),
+                            ];
                             playedCards["player"] = [];
                             playedCards["opponent"] = [];
                             tricks = [];
@@ -1173,17 +1630,23 @@
                             isRoomLeader = true;
                             leaderIcon.innerText = "👑";
                         } else if (data["event"] == "leaving") {
-                            room.players = room.players.filter((p) => p.id != data["id"]);
+                            room.players = room.players.filter(
+                                (p) => p.id != data["id"],
+                            );
                             faceOffText.innerText = "You vs Nobody";
                             isMyTurn = true;
                             points = {
                                 player: 0,
                                 opponent: 0,
-                            }
+                                pp: 0,
+                                po: 0,
+                            };
                             nextRound(true);
                         } else if (data["event"] == "restart") {
                             points["opponent"] = 0;
                             points["player"] = 0;
+                            points["pp"] = 0;
+                            points["po"] = 0;
                             currentGameState = gameStates.PREGAME;
                             isMyTurn = !data["isLeaderTurn"];
                             turnText.innerText = `${isMyTurn ? "Your Turn" : "Opponent's Turn"}`;
@@ -1191,13 +1654,26 @@
                             didWinLastGame = !isMyTurn;
                             didWinLastTwoGames = didWinLastGame;
                             nextRound(true);
+                        } else if (data["event"] == "revert") {
+                            console.log(data["isGba"], data["senderDid"])
+                            if (data["isGba"] && data["senderDid"]) {
+                                points["player"] = points["pp"];
+                                points["opponent"] = points["po"];
+                                points["opponent"] -= 3;
+                            } else if (data["isGba"] && !data["senderDid"]) {
+                                points["player"] = points["pp"];
+                                points["opponent"] = points["po"];
+                                points["player"] -= 3;
+                            } else {
+                                points["opponent"] -= 1;
+                            }
+                            drawBoard();
                         }
                     });
                 });
 
                 handleMediaChange(mediaQuery);
                 drawBoard();
-
             });
         </script>
     </body>

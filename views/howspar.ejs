@@ -1,0 +1,134 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <%- include("./partials/head.ejs") %>
+    <link rel="stylesheet" href="/styles/texty.css" />
+</head>
+<body>
+    <header>
+        <%- include("./partials/navbar.ejs") %>
+    </header>
+    <main>
+        <section>
+            <h1>Rambling a bit.</h1>Its a bit long so bear with me :)
+            <p>
+                Spar is a Ghanaian card game so it might not be so popular to people outside Ghana.
+                Give it a try though it's very interesting, and fun of course. There are many variations
+                of it so I implemented the one which is common in my region. It doesn't use a full 52 card deck.
+                5 cards down to aces of each suit are removed from the deck to leave 32 cards to play with.
+            </p>
+        </section>
+        <section>
+            <h1>Pregame</h1>
+            <p>
+                5 cards are dealt to each player from the deck. A hand can be valid or invalid. Invalidity of a hand
+                awards a player a removal of two usually random cards with a replacement of two new ones from the deck.
+                The types of invalid hands are as follows:
+                <ul>
+                    <li>No Pic No Ten: Your hand has neither a picture card (Jack, Queen or King) nor a 10 in it</li>
+                    <li>Hands: All cards in your hand are of the same suit</li>
+                    <li>Triple six: You have 3 or more sixes in your hand. The random removal is only done from the sixes in this case.</li>
+                </ul>
+                When all cards have been used once and there are no cards left to pick from. The deck is shuffled.
+                An invalid hand can still be played with hence you can choose whether you want cards removed or not.
+                After the hand is to your liking, press Ready to start the round.
+            </p>
+        </section>
+        <section>
+            <h1>Game Objective</h1>
+            <p>
+                The aim of the game is to gain the most points by leading the last trick of each round.
+            </p>
+        </section>
+        <section>
+            <h1>On my Turn?</h1>
+            <p>
+                The game is played in five tricks. On your turn, you play any of the cards you have in your hand onto the board.
+                Your opponent must respond with a card of the same suit if they have one, or a card of any suit if they don't.
+                If they do not have one of the same suit, you lead the trick.
+                If they do, the leader of the trick is the player with the higher card. After each trick, the leader goes on to
+                deal a card in the next trick with a response following until all cards in a hand have been dealt.
+            </p>
+        </section>
+        <section>
+            <h1>When does it end?</h1>
+            <p>
+                The round ends when all cards in both hands have been dealt. The leader of the last trick wins the round.
+                Points are added to the winners score based on his last card. 7-faced cards count for 2 points and 6-faced
+                cards count for 3 points. All other (larger) cards count for one point. When the last few cards comprise
+                stacked 6s and 7s, the total score is the sum of each of the cards in the stack. For example, if the winning
+                hand is a King of Diamond, Queen of Diamond, 6 of Hearts, 7 of Clubs, and 6 of Diamonds, the 6H contributes 3
+                points, the 7C contributes 2 points and the 6D contributes 3 points making a total of 8 points. Stacking ends
+                when a larger card is met or when a suit repeats more than once. So if in our example, 
+                instead of the 6 of Hearts, it was the 6 of Clubs, the stacking would end at the 7C to make just 5 points.
+                Hopefully that makes sense :)
+            </p>
+        </section>
+        <section>
+            <h1>Anything Else?</h1>
+            <p>
+                After points have been assigned, you can make two claims:
+                <ul>
+                    <li>
+                        No be game: This means that an unplayable game occured. This is usually when a player does not have
+                        any suit in common with their opponent, like an all-spades hand vs and all-diamonds hand, or an all-red
+                        hand vs an all-black hand. Hands situation also counts as an unplayable hand. In both cases. The game is scrapped.
+                        All points gained by this round are withdrawn and the game is restarted with new hands.
+                    </li>
+                    <li>
+                        Gba: This is a rule that means that there was a violation of the game somewhere else. It is accepted if
+                        a player refuses to respond with a card of the same suit even though he has one in his hand. Gba is called,
+                        3 points are deducted from the player committing the offense. All point gains are withdrawn and the game
+                        is restarted with new hands. Don't mindlessly call this one though, because if you're wrong, you get a deduction
+                        of one point.
+                    </li>
+                </ul>
+            </p>
+            <p>
+                Anyone can move on to the next game, but there is a five second wait before that can be done. It is within this time
+                limit that you can make these calls, if you do not call, an opponent is able to move on to the next round, banking the unfair
+                points for themselves, so be on your toes.
+            </p>
+        </section>
+    </main>
+    <script>
+            // definition of variables
+            const showNavbarActions = document.getElementById("navbarDropdownButton");
+            const navbarLine = document.getElementById("navbarLine");
+            const navbarActions = document.getElementById("navbarActions");
+            const mediaQuery = window.matchMedia("(max-width: 760px)");
+            
+            let isNavbarToggled = false;
+
+            // toggle navbar dropdown on or off
+            showNavbarActions.addEventListener("click", () => {
+                isNavbarToggled = !isNavbarToggled;
+                if (isNavbarToggled) {
+                    navbarLine.className = "navbar-line";
+                    navbarActions.className = "navbar-actions"
+                    showNavbarActions.innerHTML = "&#x25B2;";
+                } else {
+                    navbarLine.className = "navbar-line hidden";
+                    navbarActions.className = "navbar-actions hidden";
+                    showNavbarActions.innerHTML = "&#x25BC;";
+                }
+            });
+            function handleMediaChange(e) {
+                navbarLine.className = "navbar-line hidden";
+                isNavbarToggled = false;
+                if (e.matches) {
+                    showNavbarActions.innerHTML = "&#x25BC;";
+                    navbarActions.className = "navbar-actions hidden"
+                    showNavbarActions.className = "";
+                } else {
+                    showNavbarActions.className = "hidden";
+                    navbarActions.className = "navbar-actions"
+                }
+            }
+            mediaQuery.addEventListener("change", e => handleMediaChange(e))
+            handleMediaChange(mediaQuery);
+    </script>
+</body>
+
+</html>
