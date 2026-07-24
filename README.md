@@ -7,6 +7,11 @@ Currently includes:
 - Tic Tac Toe
 - Checkers
 
+Coming Soon:
+- Spar (A Ghanaian Card Game)
+- Ludo
+- Chess
+
 ## Features
 
 - Real-time multiplayer gameplay
@@ -50,3 +55,8 @@ http://localhost:3000
 ## Deployment
 
 I originally deployed with Render
+
+## AI Usage
+
+The only AI use was making of the logo for my favicon, as well as the occasional bug or two which i couldn't seem to pinpoint.
+Everything else (so basically everything) was done without AI.
