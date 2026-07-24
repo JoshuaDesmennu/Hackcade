@@ -6,11 +6,11 @@ Currently includes:
 
 - Tic Tac Toe
 - Checkers
+- Spar (A Ghanaian Card Game)
 
 Coming Soon:
-- Spar (A Ghanaian Card Game)
-- Ludo
 - Chess
+- Ludo
 
 ## Features
 
