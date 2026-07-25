@@ -855,7 +855,6 @@
                         }
                         case "Gba": {
                             const didGba = evaluateGba();
-                            console.log(didGba);
                             if (didGba.isGba && didGba.playerDidGba) {
                                 points["player"] = points["pp"];
                                 points["opponent"] = points["po"];
@@ -963,8 +962,6 @@
 
                     let pot = !didWinLastTwoGames;
                     let caller, response;
-
-                    console.log(tricks, ph, oh);
 
                     for (let trick of tricks) {
                         caller = pot ? [...ph] : [...oh];
@@ -1657,7 +1654,6 @@
                             didWinLastTwoGames = didWinLastGame;
                             nextRound(true);
                         } else if (data["event"] == "revert") {
-                            console.log(data["isGba"], data["senderDid"])
                             if (data["isGba"] && data["senderDid"]) {
                                 points["player"] = points["pp"];
                                 points["opponent"] = points["po"];
