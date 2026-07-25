@@ -11,13 +11,13 @@
                 <%- include("./partials/form.ejs") %>
                 <canvas id="board"></canvas>
                 <div class="game-info">
-                    <span id="isConnectedText" class="red">Not Connected</span>
+                    <span id="isConnectedText" class="red">
+                        Not Connected (<span id="leaderIcon">🚫</span>)
+                    </span>
                     <span class="separator">.</span>
                     <span id="faceOffText">Just You (local)</span>
                     <span class="separator">.</span>
                     <span id="turnText" class="green">Your turn</span>
-                    <span class="separator">.</span>
-                    <span id="leaderIcon">🚫</span>
                 </div>
             </div>
             <div class="actionButtons">
@@ -230,6 +230,7 @@
                 canvas.height = canvas.width;
                 let cardWidth = canvas.width / 5;
                 let fontHeight = 0.15 * cardWidth;
+                let uiSpacing = 20 * (canvas.width / 722);
                 const heightScaleFactor = 1.33333;
 
                 // updates the dimension-related properties of the gameboard with new dimensions
@@ -244,6 +245,7 @@
                         canvas.height = newWidth;
                         cardWidth = newWidth / 5;
                         fontHeight = 0.15 * cardWidth;
+                        uiSpacing = 20 * (newWidth / 722);
                     });
                 };
 
@@ -1256,12 +1258,12 @@
 
                 function measureButtonWidth(text) {
                     context.font = `${fontHeight}px sans-serif`;
-                    return context.measureText(text).width + 40;
+                    return context.measureText(text).width + 2*uiSpacing;
                 }
 
                 function drawButton(x, y, text) {
                     context.save();
-                    const padding = 20;
+                    const padding = uiSpacing;
                     context.textBaseline = "top";
                     context.font = `${fontHeight}px sans-serif`;
                     context.fillStyle = "white";
@@ -1297,7 +1299,7 @@
                     let remainingButtonSpace =
                         canvas.width -
                         buttonsToUse.reduce((acc, curr, i) => {
-                            acc += measureButtonWidth(curr) + 20;
+                            acc += measureButtonWidth(curr) + uiSpacing;
                             return acc;
                         }, 0);
 
@@ -1307,9 +1309,9 @@
                         widthSum +=
                             drawButton(
                                 remainingButtonSpace / 2 + widthSum,
-                                cardWidth * heightScaleFactor + 20,
+                                cardWidth * heightScaleFactor + uiSpacing,
                                 buttonsToUse[i],
-                            ) + 20;
+                            ) + uiSpacing;
                     }
 
                     // draw unplayed cards
@@ -1325,22 +1327,22 @@
 
                     // draw played cards
                     const playedCardPositionY =
-                        cardWidth * heightScaleFactor + fontHeight + 100;
+                        cardWidth * heightScaleFactor + fontHeight + 5*uiSpacing;
                     // i used 1.8 because it'll show 4 * 0.2 of the last 4 cards and the whole last card
                     drawPlayedHand(
-                        canvas.width / 2 - 1.8 * cardWidth - 40,
+                        canvas.width / 2 - 1.8 * cardWidth - 2*uiSpacing,
                         playedCardPositionY,
                         playedCards["player"],
                     );
                     drawPlayedHand(
-                        canvas.width / 2 + 40,
+                        canvas.width / 2 + 2*uiSpacing,
                         playedCardPositionY,
                         playedCards["opponent"],
                     );
 
                     // draw  scores
                     context.fillStyle = "white";
-                    context.font = "25px sans-serif";
+                    context.font = `${25 * canvas.width / 722}px sans-serif`;
                     const yourScoreDim = context.measureText("Your Score");
                     const oppScoreDim = context.measureText("Opponent's Score");
 
@@ -1349,17 +1351,17 @@
                         canvas.width / 4 - yourScoreDim.width / 2,
                         playedCardPositionY +
                             cardWidth * heightScaleFactor +
-                            50,
+                            2.5 * uiSpacing,
                     );
                     context.fillText(
                         "Opponent's Score",
                         (canvas.width * 3) / 4 - oppScoreDim.width / 2,
                         playedCardPositionY +
                             cardWidth * heightScaleFactor +
-                            50,
+                            2.5 * uiSpacing,
                     );
 
-                    context.font = "50px sans-serif";
+                    context.font = `${50 * canvas.width / 722}px sans-serif`;
                     const pPtsText = `${points["player"]}`;
                     const oPtsText = `${points["opponent"]}`;
                     context.fillText(
@@ -1368,7 +1370,7 @@
                             context.measureText(pPtsText).width / 2,
                         playedCardPositionY +
                             cardWidth * heightScaleFactor +
-                            105,
+                            5.25 * uiSpacing,
                     );
                     context.fillText(
                         oPtsText,
@@ -1376,7 +1378,7 @@
                             context.measureText(oPtsText).width / 2,
                         playedCardPositionY +
                             cardWidth * heightScaleFactor +
-                            105,
+                            5.25*uiSpacing,
                     );
                     context.restore();
                 }
