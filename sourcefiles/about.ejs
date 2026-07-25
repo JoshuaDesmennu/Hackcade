@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <%- include("./partials/head.ejs") %>
+    <link rel="stylesheet" href="/styles/texty.css" />
+</head>
+<body>
+    <header>
+        <%- include("./partials/navbar.ejs") %>
+    </header>
+    <main>
+        <section>
+            <h1>About Me</h1>
+            <p>
+                I'm Josh - a young lad who's passionate about software development and everything mathematics.
+                I am also an instrumentalist/student and I just love to chill and have fun in my own little way
+                . Reach out to me at:<br>
+                <ul>
+                    <li>Gmail: jaymanify1@gmail.com</li>
+                    <li>Snapchat: raaraajd</li>
+                    <li>Github: JoshuaDesmennu</li>
+                </ul>
+            </p>
+        </section>
+        <section>
+            <h1>About this site</h1>
+            <p>
+                This is a place where friends can choose from a handfull of games to play together over the internet.
+                It's currently still a work in progress so there aren't many games (just 2). Nonetheless, have fun with friends
+                and try to play fair (if you know what i mean). This project was built for the horizons hackathon event.
+            </p>
+        </section>
+    </main>
+    <script>
+            // definition of variables
+            const showNavbarActions = document.getElementById("navbarDropdownButton");
+            const navbarLine = document.getElementById("navbarLine");
+            const navbarActions = document.getElementById("navbarActions");
+            const mediaQuery = window.matchMedia("(max-width: 760px)");
+            
+            let isNavbarToggled = false;
+
+            // toggle navbar dropdown on or off
+            showNavbarActions.addEventListener("click", () => {
+                isNavbarToggled = !isNavbarToggled;
+                if (isNavbarToggled) {
+                    navbarLine.className = "navbar-line";
+                    navbarActions.className = "navbar-actions"
+                    showNavbarActions.innerHTML = "&#x25B2;";
+                } else {
+                    navbarLine.className = "navbar-line hidden";
+                    navbarActions.className = "navbar-actions hidden";
+                    showNavbarActions.innerHTML = "&#x25BC;";
+                }
+            });
+            function handleMediaChange(e) {
+                navbarLine.className = "navbar-line hidden";
+                isNavbarToggled = false;
+                if (e.matches) {
+                    showNavbarActions.innerHTML = "&#x25BC;";
+                    navbarActions.className = "navbar-actions hidden"
+                    showNavbarActions.className = "";
+                } else {
+                    showNavbarActions.className = "hidden";
+                    navbarActions.className = "navbar-actions"
+                }
+            }
+            mediaQuery.addEventListener("change", e => handleMediaChange(e))
+            handleMediaChange(mediaQuery);
+    </script>
+</body>
+
+</html>
+

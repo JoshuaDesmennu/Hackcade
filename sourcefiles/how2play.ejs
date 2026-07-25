@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <%- include("./partials/head.ejs") %>
+    <link rel="stylesheet" href="/styles/texty.css" />
+</head>
+<body>
+    <header>
+        <%- include("./partials/navbar.ejs") %>
+    </header>
+    <main>
+        <section>
+            <h1>I just got here.</h1>
+            <p>
+                At the home page, there are a list of games you can choose from (Get there by clicking on the navigation bar title
+                at the top left corner). Click on the one you want to play and you will be taken to the game screen.
+                There you'll see some input fields for a room code and display name, the game board, some game info and 
+                a restart and leave button.
+            </p>
+            <ul>
+                <li>The first of the info shows <span class="green">Connected</span> when you're in a room and Not Connected when you aren't.</li>
+                <li>The second one shows the piece categories of both you and your opponent, as well as your opponent's display name</li>
+                <li>The third one shows whose turn it is. It's <span>green</span> when it's your turn and white when it's not</li>
+                <li>
+                    Within the parentheses of the first item, there is an emoji showing whether you're the room leader or not. 
+                    🚫 for not the leader or when you aren't connected and 👑 for when you are.
+                </li>
+            </ul>
+        </section>
+        <section>
+            <h1>How to Create/Join A Room</h1>
+            <p>
+                Within a game screen, type in a room code of your choice. It should be a bit special. This is the code your friend will use to join the room.
+                Type that along with your display name and press submit, and that should be it. Both fields must be 30 characters or less.
+            </p>
+        </section>
+        <section>
+            <h1>
+                What to do when in a game?
+            </h1>
+            <p>
+                Click on <span class="purple">How2Play</span> on the navigation bar to get game specific rules.
+                The rules of each game are mostly standard, so if my description isn't enough, you can always look the game up.
+                Once you create a room, you can make the first move but will have to wait for an opponent to continue.
+                You can also play locally if you have a friend beside you or want to play against the computer, but you shouldn't join any room for that.
+                The first person to join a room becomes the room leader. The room leader is the only one who can restart
+                the game. When a room leader leaves, the leader role is reassigned randomly.
+            </p>
+        </section>
+        <section>
+            <h1>Other stuff</h1>
+            <p>
+                When you leave a room, depending on the game, the game state is saved until the room leader restarts the game.
+                You are disconnected if idle for about 30s.
+            </p>
+        </section>
+    </main>
+    <script>
+            // definition of variables
+            const showNavbarActions = document.getElementById("navbarDropdownButton");
+            const navbarLine = document.getElementById("navbarLine");
+            const navbarActions = document.getElementById("navbarActions");
+            const mediaQuery = window.matchMedia("(max-width: 760px)");
+            
+            let isNavbarToggled = false;
+
+            // toggle navbar dropdown on or off
+            showNavbarActions.addEventListener("click", () => {
+                isNavbarToggled = !isNavbarToggled;
+                if (isNavbarToggled) {
+                    navbarLine.className = "navbar-line";
+                    navbarActions.className = "navbar-actions"
+                    showNavbarActions.innerHTML = "&#x25B2;";
+                } else {
+                    navbarLine.className = "navbar-line hidden";
+                    navbarActions.className = "navbar-actions hidden";
+                    showNavbarActions.innerHTML = "&#x25BC;";
+                }
+            });
+            function handleMediaChange(e) {
+                navbarLine.className = "navbar-line hidden";
+                isNavbarToggled = false;
+                if (e.matches) {
+                    showNavbarActions.innerHTML = "&#x25BC;";
+                    navbarActions.className = "navbar-actions hidden"
+                    showNavbarActions.className = "";
+                } else {
+                    showNavbarActions.className = "hidden";
+                    navbarActions.className = "navbar-actions"
+                }
+            }
+            mediaQuery.addEventListener("change", e => handleMediaChange(e))
+            handleMediaChange(mediaQuery);
+    </script>
+</body>
+
+</html>
+
+<!-- 
+    Checkers.start_playing()
+    if player.isHungry():
+        checkers.alert("Go and eat")
+    else:
+        checkers.alert("Go and prepare food so you will eat when you are hungry")
+
+    checkers.turnOfThePC()
+-

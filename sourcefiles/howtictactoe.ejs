@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <%- include("./partials/head.ejs") %>
+    <link rel="stylesheet" href="/styles/texty.css" />
+</head>
+<body>
+    <header>
+        <%- include("./partials/navbar.ejs") %>
+    </header>
+    <main>
+        <section>
+            <h1>Pregame</h1>
+            <p>
+                Tictactoe is a two player game.
+                The first person to enter a room is assigned the X and the other player is assigned an O. In the case
+                that there is just one person within the room, he becomes the room leader. The room leader always goes
+                first (no matter his sign).
+            </p>
+        </section>
+        <section>
+            <h1>
+                Game Objective
+            </h1>
+            <p>
+                The aim of the game is to form a straight line with your specific letter or sign first. This means you must prevent
+                an opponent from forming one before you do. Lines can either be horizontal, vertical or along the diagonals of the board.
+            </p>
+        </section>
+        <section>
+            <h1>On My turn?</h1>
+            <p>
+                Click or tap on an empty square to place your sign within it. A square already occupied cannot be reused.
+                After placing a sign, your turn is over and you must wait for your opponent to make a move.
+            </p>
+        </section>
+        <section>
+            <h1>When does it end?</h1>
+            <p>
+                The game ends when a straight line is made by one of the players as described or if there are no more empty spaces.
+                The game can then be restarted by the room leader.
+            </p>
+        </section>
+    </main>
+    <script>
+            // definition of variables
+            const showNavbarActions = document.getElementById("navbarDropdownButton");
+            const navbarLine = document.getElementById("navbarLine");
+            const navbarActions = document.getElementById("navbarActions");
+            const mediaQuery = window.matchMedia("(max-width: 760px)");
+            
+            let isNavbarToggled = false;
+
+            // toggle navbar dropdown on or off
+            showNavbarActions.addEventListener("click", () => {
+                isNavbarToggled = !isNavbarToggled;
+                if (isNavbarToggled) {
+                    navbarLine.className = "navbar-line";
+                    navbarActions.className = "navbar-actions"
+                    showNavbarActions.innerHTML = "&#x25B2;";
+                } else {
+                    navbarLine.className = "navbar-line hidden";
+                    navbarActions.className = "navbar-actions hidden";
+                    showNavbarActions.innerHTML = "&#x25BC;";
+                }
+            });
+            function handleMediaChange(e) {
+                navbarLine.className = "navbar-line hidden";
+                isNavbarToggled = false;
+                if (e.matches) {
+                    showNavbarActions.innerHTML = "&#x25BC;";
+                    navbarActions.className = "navbar-actions hidden"
+                    showNavbarActions.className = "";
+                } else {
+                    showNavbarActions.className = "hidden";
+                    navbarActions.className = "navbar-actions"
+                }
+            }
+            mediaQuery.addEventListener("change", e => handleMediaChange(e))
+            handleMediaChange(mediaQuery);
+    </script>
+</body>
+
+</html>

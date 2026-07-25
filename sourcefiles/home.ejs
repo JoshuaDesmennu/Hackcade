@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <%- include("./partials/head.ejs") %>
+    <link rel="stylesheet" href="/styles/home.css" />
+</head>
+<body>
+    <header>
+        <%- include("./partials/navbar.ejs") %>
+    </header>
+    <main>
+        <header class="game-grid-title">
+            Choose from my ever-expanding list of games! :)
+        </header>
+        <div class="game-grid">
+            <% for (let game in games) { %>
+                <div class="game-card" onclick="window.location.pathname = `/games/<%= game %>`">
+                    <img src=<%= `/images/thumbnails/${game}.svg` %> />
+                    <div class="game-card-textbox">
+                        <span>
+                            <%= game.toUpperCase() %>
+                        </span>
+                    </div>
+                </div>
+            <% } %>
+        </div>
+    </main>
+    <script>
+            // definition of variables
+            const showNavbarActions = document.getElementById("navbarDropdownButton");
+            const navbarLine = document.getElementById("navbarLine");
+            const navbarActions = document.getElementById("navbarActions");
+            const mediaQuery = window.matchMedia("(max-width: 760px)");
+            
+            let isNavbarToggled = false;
+
+            // toggle navbar dropdown on or off
+            showNavbarActions.addEventListener("click", () => {
+                isNavbarToggled = !isNavbarToggled;
+                if (isNavbarToggled) {
+                    navbarLine.className = "navbar-line";
+                    navbarActions.className = "navbar-actions"
+                    showNavbarActions.innerHTML = "&#x25B2;";
+                } else {
+                    navbarLine.className = "navbar-line hidden";
+                    navbarActions.className = "navbar-actions hidden";
+                    showNavbarActions.innerHTML = "&#x25BC;";
+                }
+            });
+            function handleMediaChange(e) {
+                navbarLine.className = "navbar-line hidden";
+                isNavbarToggled = false;
+                if (e.matches) {
+                    showNavbarActions.innerHTML = "&#x25BC;";
+                    navbarActions.className = "navbar-actions hidden"
+                    showNavbarActions.className = "";
+                } else {
+                    showNavbarActions.className = "hidden";
+                    navbarActions.className = "navbar-actions"
+                }
+            }
+            mediaQuery.addEventListener("change", e => handleMediaChange(e))
+            handleMediaChange(mediaQuery);
+    </script>
+</body>
+
+</html>

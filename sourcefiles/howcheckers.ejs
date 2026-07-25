@@ -1,0 +1,89 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <%- include("./partials/head.ejs") %>
+    <link rel="stylesheet" href="/styles/texty.css" />
+</head>
+<body>
+    <header>
+        <%- include("./partials/navbar.ejs") %>
+    </header>
+    <main>
+        <section>
+            <h1>Pregame</h1>
+            <p>
+                Checkers/Draughts is a two player game. The first person to enter a room is assigned the color black and the other player is assigned red.
+                In the case that there is just one person within the room, he becomes the room leader. The room leader always goes
+                first (no matter his color).
+            </p>
+        </section>
+        <section>
+            <h1>
+                Game Objective
+            </h1>
+            <p>
+                The aim of the game is to capture all of your opponents pieces.
+            </p>
+        </section>
+        <section>
+            <h1>On My turn?</h1>
+            <p>
+                Click on one of your pieces to see the available moves of that specific piece.
+                When these appear, click on one of the possible squares to move that piece there.
+                When a normal piece (pawn) gets to the last row of the opponent side of the board, it becomes
+                a king (or queen). Pawns only move or capture diagonally one square away. Kings can 
+                capture any diagonal distance away. All capturing is mandatory, including successive captures.
+                After you make a move and there are no more moves by the same piece (captures), your turn is over
+                and you must wait for your opponent to make a move.
+            </p>
+        </section>
+        <section>
+            <h1>When does it end?</h1>
+            <p>
+                The game ends when you win by capturing all your opponents pieces. When this cannot be done, the game ends as a draw.
+                Specific draw scenarios include there being only one piece of each side on the board, there being only kings (or queens),
+                there not being any viable moves, etc. After the game ends, it can be restarted by the room leader.
+            </p>
+        </section>
+    </main>
+    <script>
+            // definition of variables
+            const showNavbarActions = document.getElementById("navbarDropdownButton");
+            const navbarLine = document.getElementById("navbarLine");
+            const navbarActions = document.getElementById("navbarActions");
+            const mediaQuery = window.matchMedia("(max-width: 760px)");
+            
+            let isNavbarToggled = false;
+
+            // toggle navbar dropdown on or off
+            showNavbarActions.addEventListener("click", () => {
+                isNavbarToggled = !isNavbarToggled;
+                if (isNavbarToggled) {
+                    navbarLine.className = "navbar-line";
+                    navbarActions.className = "navbar-actions"
+                    showNavbarActions.innerHTML = "&#x25B2;";
+                } else {
+                    navbarLine.className = "navbar-line hidden";
+                    navbarActions.className = "navbar-actions hidden";
+                    showNavbarActions.innerHTML = "&#x25BC;";
+                }
+            });
+            function handleMediaChange(e) {
+                navbarLine.className = "navbar-line hidden";
+                isNavbarToggled = false;
+                if (e.matches) {
+                    showNavbarActions.innerHTML = "&#x25BC;";
+                    navbarActions.className = "navbar-actions hidden"
+                    showNavbarActions.className = "";
+                } else {
+                    showNavbarActions.className = "hidden";
+                    navbarActions.className = "navbar-actions"
+                }
+            }
+            mediaQuery.addEventListener("change", e => handleMediaChange(e))
+            handleMediaChange(mediaQuery);
+    </script>
+</body>
+
+</html>
